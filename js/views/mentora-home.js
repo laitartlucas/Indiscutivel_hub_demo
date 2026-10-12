@@ -23,6 +23,7 @@ import { toast } from '../ui/toast.js';
 import { copyLinkDialog } from './student-forms.js';
 import { can } from '../lib/permissions.js';
 import { renderTeamHome } from './team-home.js';
+import { formatAverage, formatCount } from '../../shared/active-students.js';
 
 // Quem está vendo (a proprietária pode tudo; a equipe só o que o papel permite). O servidor confere de novo em cada rota.
 let viewer = null;
@@ -136,8 +137,16 @@ function renderKpis(summary, overview, overviewFailed) {
     if (overview) return statCard({ label, value: String(overview.kpis[key]), iconName, note });
     return statCard({ label, value: '—', iconName, note: overviewFailed ? 'indisponível agora' : 'carregando…' });
   });
+  // Alunas ativas das alunas: só os dois números agregados, auto-informados por cada aluna (nunca CRM, nunca valor por aluna).
+  const net = overview?.network;
+  const network = net && Number.isInteger(net.total)
+    ? [
+        statCard({ label: 'Alunas ativas das alunas', value: formatCount(net.total), iconName: 'alunas', note: `soma do que ${net.reporting} de ${net.students} alunas informaram` }),
+        statCard({ label: 'Média por aluna', value: formatAverage(net.average), iconName: 'progresso', note: net.average === null ? 'ninguém informou ainda' : 'alunas ativas, entre quem informou' }),
+      ]
+    : [];
   return html`${summary.totalStudents === 0 ? renderEmpty() : ''}
-    <div class="stat-cards mp-kpis">${STATS.map(([key, label, iconName]) => statCard({ label, value: String(summary[key]), iconName }))}${extras}</div>`;
+    <div class="stat-cards mp-kpis">${STATS.map(([key, label, iconName]) => statCard({ label, value: String(summary[key]), iconName }))}${extras}${network}</div>`;
 }
 
 // ---------------------------------------------------------------- evolução

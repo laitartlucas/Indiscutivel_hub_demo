@@ -1,4 +1,5 @@
 import { attrs, html } from '../lib/html.js';
+import { icon } from '../ih-icons.js';
 
 /** Classes da célula: alinhamento à direita e/ou sem quebra de linha (c.nowrap); `optional` esconde a coluna em telas médias (769 a 1180 px). */
 function cellClass(c, primary = false, body = true) {
@@ -13,8 +14,16 @@ function cellClass(c, primary = false, body = true) {
  * de tabela some com a semântica em alguns leitores de tela, os papéis ARIA de tabela são explícitos; o rótulo de cada
  * campo vem de `data-label` (mostrado só no modo cartão).
  */
-export function dataTable({ caption, columns, rows, dense = false, rowKey = (row) => row.id, rowClass = () => false }) {
-  const head = columns.map((c) => html`<th${attrs({ scope: 'col', role: 'columnheader', class: cellClass(c, false, false) })}>${c.label}</th>`);
+export function dataTable({ caption, columns, rows, dense = false, rowKey = (row) => row.id, rowClass = () => false, sort = null }) {
+  // Coluna ordenável (`sortable`): o cabeçalho vira um botão (`data-sort`) e o <th> anuncia a ordem em `aria-sort`.
+  const sortHead = (c) => {
+    if (!c.sortable) return c.label;
+    const active = sort?.key === c.key;
+    const arrow = active ? (sort.order === 'asc' ? 'chevronUp' : 'chevronDown') : 'chevronDown';
+    return html`<button${attrs({ type: 'button', class: `th-sort${active ? ' is-active' : ''}`, 'data-sort': c.key })}>${c.label}<span class="th-sort-icon" aria-hidden="true">${icon(arrow, { size: 14, stroke: 2 })}</span></button>`;
+  };
+  const ariaSort = (c) => (c.sortable ? (sort?.key === c.key ? (sort.order === 'asc' ? 'ascending' : 'descending') : 'none') : false);
+  const head = columns.map((c) => html`<th${attrs({ scope: 'col', role: 'columnheader', class: cellClass(c, false, false), 'aria-sort': ariaSort(c) })}>${sortHead(c)}</th>`);
   const body = rows.map((row) => html`<tr${attrs({ role: 'row', class: rowClass(row), 'data-row': String(rowKey(row)) })}>${columns.map((c, i) => {
     const content = c.render ? c.render(row) : row[c.key];
     return html`<td${attrs({ role: 'cell', class: cellClass(c, i === 0), 'data-label': c.label })}>${content}</td>`;

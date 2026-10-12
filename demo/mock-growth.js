@@ -382,8 +382,13 @@ export function createGrowthDemo(d) {
     return value;
   }
 
+  // Privacidade (A1), igual ao servidor: regras medidas pelo CRM da aluna só mostram contagem agregada (0 ou 3+), sem nomes.
+  const CRM_RULES = ['revenue_won_total', 'deals_won_count', 'people_count', 'leads_converted_count', 'tasks_done_count'];
+  const isCrmRule = (kind) => CRM_RULES.includes(kind);
+  const maskedCount = (n) => (n === 0 || n >= 3 ? n : null);
+  const REVENUE_RULE_MESSAGE = 'Conquistas por valor em R$ não podem ser criadas nem editadas: a mentora não vê o faturamento da aluna e a regra revelaria o valor dela.';
   const options = () => ({
-    ruleKinds: RULE_KINDS.map((kind) => ({ kind, label: RULES[kind].label, unit: RULES[kind].unit, decimals: RULES[kind].decimals, max: RULES[kind].max })),
+    ruleKinds: RULE_KINDS.filter((kind) => kind !== 'revenue_won_total').map((kind) => ({ kind, label: RULES[kind].label, unit: RULES[kind].unit, decimals: RULES[kind].decimals, max: RULES[kind].max })),
     categories: ACHIEVEMENT_CATEGORIES.map((key) => ({ key, label: CATEGORY_LABELS[key] })),
   });
 
@@ -392,7 +397,8 @@ export function createGrowthDemo(d) {
   const mentoraAchievementDto = (a) => ({
     id: a.id, title: a.title, description: a.description, category: a.category, categoryLabel: CATEGORY_LABELS[a.category], ruleKind: a.ruleKind,
     ruleLabel: RULES[a.ruleKind].label, ruleValue: a.ruleValue, criteria: describeRule(a.ruleKind, a.ruleValue), xpReward: a.xpReward, active: a.active,
-    version: a.version, unlockCount: unlockCount(a),
+    version: a.version, unlockCount: isCrmRule(a.ruleKind) ? maskedCount(unlockCount(a)) : unlockCount(a),
+    privateRule: isCrmRule(a.ruleKind), locked: a.ruleKind === 'revenue_won_total',
   });
   const ownedAchievement = (m, id) => {
     if (!d.UUID.test(id)) throw Errors.notFound('Conquista não encontrada.');
@@ -408,7 +414,7 @@ export function createGrowthDemo(d) {
     const rows = db().achievements.filter((a) => a.mentoraId === m.id && !a.archivedAt);
     return {
       status: 200,
-      body: { total: rows.length, unlockTotal: rows.reduce((n, a) => n + unlockCount(a), 0), students: studentsOf().filter((s) => s.active && !s.manuallyBlocked).length, data: rows.map(mentoraAchievementDto), options: options() },
+      body: { total: rows.length, unlockTotal: rows.reduce((n, a) => n + ((isCrmRule(a.ruleKind) ? maskedCount(unlockCount(a)) : unlockCount(a)) ?? 0), 0), students: studentsOf().filter((s) => s.active && !s.manuallyBlocked).length, data: rows.map(mentoraAchievementDto), options: options() },
     };
   }
 
@@ -416,7 +422,7 @@ export function createGrowthDemo(d) {
     const m = adminOnly();
     noQuery(searchParams);
     const a = ownedAchievement(m, id);
-    const unlockedBy = db().achievementUnlocks
+    const unlockedBy = isCrmRule(a.ruleKind) ? [] : db().achievementUnlocks
       .filter((x) => x.achievementId === a.id)
       .sort((x, y) => y.unlockedAt.localeCompare(x.unlockedAt))
       .map((x) => {
@@ -451,6 +457,7 @@ export function createGrowthDemo(d) {
     const issues = createIssues();
     onlyKeys(b, ['title', 'description', 'category', 'ruleKind', 'ruleValue', 'xpReward', 'active'], issues);
     const f = readAchievementFields(b, issues, { partial: false });
+    if (f.ruleKind === 'revenue_won_total') issues.add('ruleKind', REVENUE_RULE_MESSAGE);
     if (f.ruleKind) f.ruleValue = checkRuleValue(f.ruleKind, f.ruleValue, issues);
     issues.throwIfAny();
     const row = { id: d.newId(), mentoraId: m.id, seedKey: null, ...f, archivedAt: null, version: 1, createdAt: d.stamp() };
@@ -467,6 +474,16 @@ export function createGrowthDemo(d) {
     const f = readAchievementFields(b, issues, { partial: true });
     issues.throwIfAny();
     const a = ownedAchievement(m, id);
+    if (a.ruleKind === 'revenue_won_total') {
+      if ((f.ruleKind !== undefined && f.ruleKind !== a.ruleKind) || (f.ruleValue !== undefined && f.ruleValue !== a.ruleValue) || (f.xpReward !== undefined && f.xpReward !== a.xpReward)) {
+        throw Errors.validation([{ field: 'ruleKind', message: REVENUE_RULE_MESSAGE }]);
+      }
+    } else if (f.ruleKind === 'revenue_won_total') {
+      throw Errors.validation([{ field: 'ruleKind', message: REVENUE_RULE_MESSAGE }]);
+    }
+    if (f.ruleKind !== undefined && isCrmRule(a.ruleKind) && !isCrmRule(f.ruleKind) && unlockCount(a) > 0) {
+      throw Errors.conflict('achievement_locked', 'Esta conquista já foi desbloqueada: crie uma nova conquista em vez de trocar o critério.');
+    }
     if (f.ruleKind !== undefined || f.ruleValue !== undefined) {
       const kind = f.ruleKind ?? a.ruleKind;
       const value = f.ruleValue ?? (f.ruleKind === 'challenge_award' ? 1 : a.ruleValue);
@@ -492,7 +509,10 @@ export function createGrowthDemo(d) {
 
   const classNamesOf = () => [...new Set(studentsOf().map((s) => s.className).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   const enrollmentsOf = (c) => db().challengeEnrollments.filter((e) => e.challengeId === c.id);
-  const doneOf = (userId, c) => db().challengeProgress.filter((p) => p.userId === userId && c.actions.some((a) => a.id === p.actionId)).length;
+  // Só as ações marcadas pela aluna entram no andamento visto pela mentora (as automáticas medem o CRM dela).
+  const manualOf = (c) => c.actions.filter((a) => a.kind === 'manual');
+  const hasAuto = (c) => c.actions.some((a) => a.kind !== 'manual');
+  const doneOf = (userId, c) => db().challengeProgress.filter((p) => p.userId === userId && manualOf(c).some((a) => a.id === p.actionId)).length;
   const achievementTitleOf = (c) => (c.achievementId ? (db().achievements.find((a) => a.id === c.achievementId)?.title ?? 'Conquista') : null);
 
   function mentoraChallengeBase(c) {
@@ -508,8 +528,8 @@ export function createGrowthDemo(d) {
     const doneTotal = enrollments.reduce((n, e) => n + doneOf(e.userId, c), 0);
     return {
       participants: enrollments.length,
-      completed: enrollments.filter((e) => e.completedAt).length,
-      avgPct: enrollments.length && c.actions.length ? completionPct(doneTotal, enrollments.length * c.actions.length) : 0,
+      completed: hasAuto(c) ? maskedCount(enrollments.filter((e) => e.completedAt).length) : enrollments.filter((e) => e.completedAt).length,
+      avgPct: enrollments.length && manualOf(c).length ? completionPct(doneTotal, enrollments.length * manualOf(c).length) : null,
     };
   }
 
@@ -526,12 +546,13 @@ export function createGrowthDemo(d) {
       .map((e) => {
         const s = db().users.find((u) => u.id === e.userId);
         const done = doneOf(e.userId, c);
-        return { id: s.id, name: s.name, className: s.className, joinedAt: e.joinedAt, completedAt: e.completedAt, done, total: c.actions.length, pct: completionPct(done, c.actions.length) };
+        return { id: s.id, name: s.name, className: s.className, joinedAt: e.joinedAt, completedAt: hasAuto(c) ? null : e.completedAt, done, total: manualOf(c).length, pct: completionPct(done, manualOf(c).length) };
       })
       .sort((a, b) => a.joinedAt.localeCompare(b.joinedAt) || a.name.localeCompare(b.name, 'pt-BR'));
     return {
       ...mentoraChallengeBase(c),
       actions: c.actions.map((a) => ({ id: a.id, title: a.title, xp: a.xp, position: a.position, kind: a.kind, target: a.target })),
+      hasAutoActions: hasAuto(c),
       metrics: metricsOf(c),
       participants,
     };
@@ -545,7 +566,7 @@ export function createGrowthDemo(d) {
       .sort((a, b) => Number(a.status === 'archived') - Number(b.status === 'archived') || b.startsOn.localeCompare(a.startsOn) || b.createdAt.localeCompare(a.createdAt));
     return {
       status: 200,
-      body: { total: rows.length, classes: classNamesOf(), data: rows.map((c) => ({ ...mentoraChallengeBase(c), actionsCount: c.actions.length, ...(({ participants, completed, avgPct }) => ({ participants, completed, avgPct }))(metricsOf(c)) })), options: options() },
+      body: { total: rows.length, classes: classNamesOf(), data: rows.map((c) => ({ ...mentoraChallengeBase(c), actionsCount: c.actions.length, hasAutoActions: hasAuto(c), ...(({ participants, completed, avgPct }) => ({ participants, completed, avgPct }))(metricsOf(c)) })), options: options() },
     };
   }
 

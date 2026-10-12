@@ -1,4 +1,4 @@
-import { APP_NAME, LOGOUT_FAILED } from './config.js';
+import { APP_NAME, IA_INDISCUTIVEL_URL, LOGOUT_FAILED } from './config.js';
 import { mount } from './lib/dom.js';
 import { icon, logoMark } from './ih-icons.js';
 import { html } from './lib/html.js';
@@ -8,6 +8,7 @@ import { getTasksBadge, onTasksBadge, refreshTasksBadge, resetTasksBadge } from 
 import { getAvatarUrl, homePath, onAccount } from './lib/account.js';
 import { avatarContent, wordmark } from './ui/components.js';
 import { toast } from './ui/toast.js';
+import { iaNavItem } from './ui/ia-link.js';
 import { mountTopbar, topbarSearchHtml, topbarToolsHtml } from './ui/topbar.js';
 import { refreshNotifications, resetNotifications } from './lib/notifications.js';
 
@@ -33,6 +34,8 @@ const NAV_USER = [
   { id: 'progress', label: 'Meu progresso', href: '#/progresso', icon: 'progresso', group: 'Crescimento', bottom: false },
   { id: 'ranking', label: 'Evolução da comunidade', href: '#/ranking', icon: 'equipe', group: 'Crescimento', bottom: false },
   { id: 'reports', label: 'Relatórios', href: '#/relatorios', icon: 'relatorios', group: 'Análises', bottom: false },
+  // IA Indiscutível: link externo (nova aba), não é rota; por isso nunca recebe aria-current.
+  { id: 'ia', label: 'IA Indiscutível', href: IA_INDISCUTIVEL_URL, icon: 'ia', group: 'Inteligência', bottom: false, external: true },
   { id: 'settings', label: 'Configurações', href: '#/configuracoes', icon: 'config', group: 'Conta', bottom: false },
 ];
 // A mentora não vê o CRM da aluna: só o Painel e o acompanhamento das alunas.
@@ -46,6 +49,8 @@ const NAV_ADMIN = [
   { id: 'mg-achievements', label: 'Conquistas', href: '#/gestao/conquistas', icon: 'conquistas', group: 'Crescimento', bottom: false, perm: 'achievements.manage' },
   // Análises: relatórios da mentoria (só sinais de mentoria; nunca R$ nem CRM das alunas).
   { id: 'mentora-reports', label: 'Relatórios', href: '#/relatorios-mentoria', icon: 'relatorios', group: 'Análises', bottom: false, perm: 'reports.view' },
+  // IA Indiscutível: só a proprietária (owner exclui a equipe); link externo, sem aria-current.
+  { id: 'ia', label: 'IA Indiscutível', href: IA_INDISCUTIVEL_URL, icon: 'ia', group: 'Inteligência', bottom: false, owner: true, external: true },
   { id: 'team', label: 'Equipe', href: '#/equipe', icon: 'equipe', group: 'Administração', bottom: false, owner: true },
   { id: 'settings', label: 'Configurações', href: '#/configuracoes', icon: 'config', group: 'Administração', bottom: false, perm: 'settings.manage' },
 ];
@@ -107,7 +112,7 @@ export function renderShell({ root, session, navigate, active, heading, eyebrow,
           <button type="button" class="icon-btn sidebar-close" id="nav-close" aria-label="Fechar menu">${icon('close', { size: 20 })}</button></div>
         <nav class="sidebar-nav" aria-label="Navegação principal"><ul class="nav">${NAV.map(
           (item, index) =>
-            html`${item.group && item.group !== NAV[index - 1]?.group ? html`<li class="nav-group-label" aria-hidden="true">${item.group}</li>` : ''}<li><a class="nav-item" href="${item.href}" title="${item.label}"${current(item)}>${icon(item.icon)}<span class="nav-item-text">${item.label}</span>${item.badge ? html`<span class="nav-badge" data-nav-badge hidden></span>` : ''}</a></li>`,
+            html`${item.group && item.group !== NAV[index - 1]?.group ? html`<li class="nav-group-label" aria-hidden="true">${item.group}</li>` : ''}<li>${item.external ? iaNavItem() : html`<a class="nav-item" href="${item.href}" title="${item.label}"${current(item)}>${icon(item.icon)}<span class="nav-item-text">${item.label}</span>${item.badge ? html`<span class="nav-badge" data-nav-badge hidden></span>` : ''}</a>`}</li>`,
         )}</ul></nav>
         <div class="sidebar-footer">
           <button type="button" class="sidebar-btn" id="sidebar-collapse" aria-label="Recolher menu">${icon('chevronLeft')}<span class="sidebar-btn-text">Recolher menu</span></button>
@@ -121,7 +126,7 @@ export function renderShell({ root, session, navigate, active, heading, eyebrow,
           <span class="topbar-brand"><a class="brand-link" href="#${homePath()}" aria-label="${APP_NAME}: ir para a página inicial">${logoMark(32)}${wordmark()}</a></span>
           ${topbarSearchHtml(user)}
           <span class="topbar-spacer"></span>
-          ${topbarToolsHtml()}
+          ${topbarToolsHtml(user)}
           <a class="topbar-user" href="#/perfil" aria-label="Meu perfil: ${user?.name}">
             <span class="avatar" aria-hidden="true">${avatarContent(user?.name, getAvatarUrl())}</span>
             <span class="topbar-user-text"><span class="topbar-user-name" title="${user?.name}">${user?.name}</span>${roleText(user) ? html`<small class="topbar-user-meta">${roleText(user)}</small>` : ''}</span>

@@ -6,6 +6,8 @@ import { icon } from '../ih-icons.js';
 import { applySizes } from '../lib/widths.js';
 import { alert, button, emptyState, skeleton } from '../ui/components.js';
 import { toast } from '../ui/toast.js';
+import { activeChart, deltaBadge } from '../ui/active-students.js';
+import { formatCount, lastMonths, updatedAgo, updatedOn } from '../../shared/active-students.js';
 import { confirmCancelSession, confirmDeleteNote, NOTE_MAX, noteError, openNoteDialog, openSessionDialog } from './mentoring-dialogs.js';
 
 // Seções de mentoria do Perfil da aluna (kit M-PerfilAluna): KPIs, atividade, desafios, atividades recentes, metas,
@@ -59,6 +61,19 @@ function renderActivity(g) {
         )}</svg>
         <p class="mp-bars-axis" aria-hidden="true"><span>há 14 dias</span><span>Hoje</span></p>`}
     <p class="mp-muted">Último acesso: <strong>${g.lastAccessAt ? DAY_HOUR.format(new Date(g.lastAccessAt)) : 'nunca acessou'}</strong></p>`;
+}
+
+/** Alunas ativas que a aluna informou (auto-informado; a mentora vê só o número e o histórico de 6 meses). */
+function renderActive(g) {
+  const a = g.activeStudents;
+  const informed = a && Number.isInteger(a.count);
+  return html`<div class="dash-card-head"><h2 id="pg-active-title">Alunas ativas</h2><span class="mp-muted">Informado pela aluna</span></div>
+    ${informed
+      ? html`<p class="as-profile-top"><span class="as-number">${formatCount(a.count)}</span>${deltaBadge(a.deltaMonth)}</p>
+        <p class="as-meta"><span>${updatedOn(a.updatedAt)}</span><span class="as-sep" aria-hidden="true">·</span><span>${updatedAgo(a.updatedAt)}</span></p>
+        <div class="as-chart-wrap">${activeChart(lastMonths(a.history, new Date().toISOString()))}</div>`
+      : emptyState({ title: 'Ainda não informou.', message: 'Quando ela informar quantas alunas ativas tem, o número e o histórico aparecem aqui.' })}
+    <p class="mp-muted">Por privacidade, você vê só este número, nunca os clientes nem os valores dela.</p>`;
 }
 
 function renderChallenges(g) {
@@ -164,6 +179,7 @@ export function mountStudentGrowth({ host, api, student, can = () => true }) {
     <div class="dash-split mp-psplit">
       <div class="dash-side">
         <section class="dash-card" id="pg-activity" aria-labelledby="pg-activity-title">${skeleton(2)}</section>
+        <section class="dash-card as-card" id="pg-active" aria-labelledby="pg-active-title">${skeleton(2)}</section>
         <section class="dash-card" id="pg-challenges" aria-labelledby="pg-challenges-title">${skeleton(2)}</section>
       </div>
       <div class="dash-side">
@@ -181,6 +197,7 @@ export function mountStudentGrowth({ host, api, student, can = () => true }) {
   const el = {
     kpis: q('#pg-kpis'),
     activity: q('#pg-activity'),
+    active: q('#pg-active'),
     challenges: q('#pg-challenges'),
     notes: q('#pg-notes'),
     session: q('#pg-session'),
@@ -190,6 +207,7 @@ export function mountStudentGrowth({ host, api, student, can = () => true }) {
   };
   const growthCards = [
     [el.activity, renderActivity, 'Atividade', 'pg-activity-title'],
+    [el.active, renderActive, 'Alunas ativas', 'pg-active-title'],
     [el.challenges, renderChallenges, 'Desafios', 'pg-challenges-title'],
     [el.recent, renderRecent, 'Atividades recentes', 'pg-recent-title'],
     [el.goals, renderGoals, 'Metas do mês', 'pg-goals-title'],

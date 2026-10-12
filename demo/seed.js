@@ -1,6 +1,7 @@
 import { buildGrowthSeed } from './seed-growth.js';
 import { weekBounds } from './mentora-data.js';
 import { SYSTEM_ROLES } from './team-data.js';
+import { monthKey, shiftMonth } from '../shared/active-students.js';
 
 // Dados fictícios da versão de demonstração (nada aqui é real). Determinístico: tudo é calculado a partir do "agora"
 // recebido, com deslocamentos fixos; os ids e os tokens de convite são sempre os mesmos.
@@ -9,7 +10,7 @@ export const DEMO_PASSWORD = 'Demo-1234';
 export const MENTORA_EMAIL = 'mentora@demo.com';
 export const STUDENT_EMAIL = 'aluna@demo.com';
 export const ASSISTANT_EMAIL = 'assistente@demo.com';
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -225,6 +226,27 @@ export function buildSeed(now) {
       createdAt: ago(4 * HOUR),
     }),
   ];
+
+  // "Alunas ativas" que cada aluna informa sobre as alunas DELA (auto-informado; a mentora nunca vê o CRM). Seis meses, o último valor de cada mês.
+  // `values[0]` é de 5 meses atrás e `values[5]` do mês atual; `null` = mês sem informar. `daysAgo`: quando foi a última atualização
+  // (limitada ao mês do último valor, para o histórico e a data sempre combinarem).
+  const currentMonth = monthKey(now.toISOString());
+  const ACTIVE_STUDENTS_SEED = {
+    2: { values: [3, 4, 5, 6, 7, 8], daysAgo: 2 }, // Camila: 8, subiu 1
+    3: { values: [10, 12, 15, 18, 22, 25], daysAgo: 1 },
+    4: { values: [2, 2, 1, 1, 0, 0], daysAgo: 6 }, // 0, igual ao mês anterior
+    5: { values: [14, 13, 12, 12, 11, 12], daysAgo: 4 },
+    6: { values: [1, 2, 2, 3, 3, null], daysAgo: 20 }, // 3, sem atualizar este mês
+    7: { values: [null, null, null, 2, 4, 7], daysAgo: 9 },
+    11: { values: [8, 7, 6, 5, null, null], daysAgo: 100 }, // bloqueada: parou em 5
+    12: { values: [1, 0, null, null, null, null], daysAgo: 150 }, // inativa: 0
+  };
+  for (const [n, { values, daysAgo }] of Object.entries(ACTIVE_STUDENTS_SEED)) {
+    const history = values.map((count, k) => (count === null ? null : { month: shiftMonth(currentMonth, k - 5), count })).filter(Boolean);
+    const last = history.at(-1);
+    const updatedAt = last.month === currentMonth ? new Date(Math.max(t - daysAgo * DAY, Date.parse(`${currentMonth}-01T03:00:00.000Z`) + HOUR)).toISOString() : `${last.month}-15T15:00:00.000Z`;
+    users.find((u) => u.id === uid(Number(n))).activeStudents = { history, updatedAt: updatedAt > now.toISOString() ? now.toISOString() : updatedAt };
+  }
 
   // Convites: ativas têm um aceito; pendentes/expirada têm um link (token fixo, só para o demo).
   const accepted = (n, userId, createdAgo, acceptedAgo) => ({
@@ -565,7 +587,7 @@ export function buildSeed(now) {
   for (const goal of goals) {
     if (goal.metric !== 'revenue' || goal.month >= monthOf(t)) continue;
     const won = deals.filter((d) => d.stage === 'won' && monthOf(Date.parse(d.closedAt)) === goal.month).reduce((n, d) => n + Math.round(Number(d.value) * 100), 0);
-    if (won >= Math.round(Number(goal.target) * 100)) addXp('goal_reached', `goal:${goal.id}`, new Date(Date.UTC(Number(goal.month.slice(0, 4)), Number(goal.month.slice(5, 7)), 1, 11)).toISOString());
+    if (won >= Math.round(Number(goal.target) * 100)) addXp('goal_reached', `goal:${goal.metric}:${goal.month}`, new Date(Date.UTC(Number(goal.month.slice(0, 4)), Number(goal.month.slice(5, 7)), 1, 11)).toISOString());
   }
 
   const growth = buildGrowthSeed({ now, owner, users, addXp });

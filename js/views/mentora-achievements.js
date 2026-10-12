@@ -11,7 +11,8 @@ import { confirmArchiveAchievement, openAchievementDialog } from './achievement-
 /** Gestão de conquistas (mentora, kit M-Conquistas): catálogo, critério fixo, ativar/desativar e quantas alunas desbloquearam. */
 
 const nf = new Intl.NumberFormat('pt-BR');
-const countText = (n) => (n === 1 ? '1 aluna desbloqueou' : `${nf.format(n)} alunas desbloquearam`);
+// Regra medida pelo CRM da aluna: a API só informa 0 ou 3 ou mais; no meio vem null ("menos de 3"), para não isolar ninguém.
+const countText = (n) => (n === null ? 'Menos de 3 alunas desbloquearam' : n === 1 ? '1 aluna desbloqueou' : `${nf.format(n)} alunas desbloquearam`);
 
 function retryBlock(error) {
   return html`<div class="stack">${alert({ tone: 'danger', message: describeError(error) })}<div class="row">${button({ label: 'Tentar de novo', variant: 'ghost', extra: { 'data-action': 'retry' } })}</div></div>`;
@@ -25,6 +26,7 @@ function card(a) {
       <span class="mg-ach-switch"><button${attrs({ type: 'button', class: 'switch', role: 'switch', 'aria-checked': String(a.active), 'aria-label': `Ativar ${a.title}`, 'data-action': 'toggle', 'data-id': a.id })}></button></span>
     </div>
     <p class="mg-criterion"><strong>Critério:</strong> ${a.criteria}</p>
+    ${a.privateRule ? html`<p class="mg-criterion mp-muted">Critério medido pelo CRM da aluna: por privacidade, você vê só o total de desbloqueios, nunca quem.</p>` : ''}
     <div class="mg-ach-foot"><span class="mg-ach-count">${countText(a.unlockCount)}</span><span class="mg-ach-xp">${a.xpReward > 0 ? xpText(a.xpReward) : 'Sem XP'}</span></div>
     <div class="mg-ach-actions">${button({ label: 'Editar', variant: 'ghost', small: true, iconStart: icon('edit', { size: 14 }), extra: { 'data-action': 'edit', 'data-id': a.id, 'aria-label': `Editar ${a.title}` } })}${button({ label: 'Arquivar', variant: 'ghost', small: true, iconStart: icon('trash', { size: 14 }), extra: { 'data-action': 'archive', 'data-id': a.id, 'aria-label': `Arquivar ${a.title}` } })}</div>
   </li>`;

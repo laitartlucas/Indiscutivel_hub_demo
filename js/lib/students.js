@@ -51,8 +51,11 @@ const RESEND = new Set(['no_invite', 'invite_pending', 'invite_expired', 'active
  * Aluna ativa (não bloqueada nem inativa) pode receber um link: antes de entrar é o convite de acesso; depois
  * de entrar é o link de redefinição de senha.
  */
-export function canResend(student) {
-  return RESEND.has(student?.status);
+export function canResend(student, user) {
+  if (!RESEND.has(student?.status)) return false;
+  // Redefinir a senha de quem já entrou (link entregue a quem pede) é só da proprietária: o servidor devolve 403 para a equipe.
+  if (student.status === 'active' && user !== undefined && user?.role !== 'admin') return false;
+  return true;
 }
 
 /** Rótulo do botão que gera o link: quem já ativou a conta recebe um link para redefinir a senha. */

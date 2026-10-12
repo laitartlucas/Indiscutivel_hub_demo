@@ -102,7 +102,7 @@ function headerActions(student, invites, user) {
     ['edit', 'Editar dados', 'primary', manage],
     ['schedule', 'Marcar sessão', 'ghost', can(user, 'sessions.manage')],
     ['plan', 'Plano de ação', 'ghost', student.status === 'active' && can(user, 'followup.manage')],
-    ['resend', resendLabel(student), 'ghost', manage && canResend(student)],
+    ['resend', resendLabel(student), 'ghost', manage && canResend(student, user)],
     ['cancel-invite', 'Cancelar convite pendente', 'ghost', manage && hasPending],
     ['block', 'Bloquear acesso', 'ghost', manage && valid.has('block')],
     ['unblock', 'Desbloquear', 'ghost', manage && valid.has('unblock')],

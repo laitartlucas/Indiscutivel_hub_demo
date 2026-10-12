@@ -15,6 +15,21 @@ export const ACTIVITY_LABELS = {
   challenge_action: 'Avançou em um desafio',
   challenge_completed: 'Concluiu um desafio',
 };
+// Fusos das preferências da aluna e o texto de cada um (igual a sessionWhenText em server/src/domain/mentora.ts).
+const SESSION_ZONES = {
+  'America/Sao_Paulo': { offset: 180, label: 'horário de Brasília' },
+  'America/Manaus': { offset: 240, label: 'horário de Manaus' },
+  'America/Rio_Branco': { offset: 300, label: 'horário do Acre' },
+  'America/Noronha': { offset: 120, label: 'horário de Fernando de Noronha' },
+  UTC: { offset: 0, label: 'UTC' },
+};
+export function sessionWhenText(at, timezone) {
+  const zone = SESSION_ZONES[timezone] ?? SESSION_ZONES['America/Sao_Paulo'];
+  const local = new Date(at.getTime() - zone.offset * 60_000);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(local.getUTCDate())}/${p(local.getUTCMonth() + 1)} às ${p(local.getUTCHours())}:${p(local.getUTCMinutes())} (${zone.label})`;
+}
+
 export const activityLabel = (kind) => ACTIVITY_LABELS[kind] ?? 'Teve uma atividade';
 
 export const INACTIVE_DAYS = 7;

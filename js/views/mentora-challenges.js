@@ -24,7 +24,7 @@ function row(c) {
   const key = mentoraStatus(c);
   const meta = CHALLENGE_STATUS_META[key];
   const tone = meta.tone;
-  const none = c.status === 'draft' || c.participants === 0;
+  const none = c.status === 'draft' || c.participants === 0 || c.avgPct === null || c.avgPct === undefined;
   return html`<li${attrs({ class: `mg-chal-row${c.achievement ? ' is-premium' : ''}`, 'data-chal': c.id })}>
     <div class="mg-chal-main">
       <div class="mg-chal-titleline"><h3 class="mg-chal-title"><button type="button" class="mg-chal-open" data-action="open" data-id="${c.id}">${c.title}</button></h3><span class="mg-status mg-status--${tone}">${meta.label}</span></div>

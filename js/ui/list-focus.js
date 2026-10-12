@@ -9,7 +9,7 @@
  * Só age se o foco estava dentro da região; se a pessoa levou o foco para outro lugar enquanto a
  * lista carregava (ex.: a busca), não rouba o foco.
  *
- * Destino, em ordem: o mesmo botão do paginador (se ainda habilitado); o mesmo controle
+ * Destino, em ordem: o mesmo botão do paginador (se ainda habilitado); o mesmo cabeçalho ordenável (data-sort); o mesmo controle
  * (data-action + data-id) se ele ainda existir; a tabela (região rolável, tabindex="0");
  * o primeiro botão habilitado da região (ação do estado vazio ou "Tentar de novo"); `fallback()`.
  */
@@ -20,9 +20,13 @@ export function createListFocus(region, { fallback } = {}) {
     return el instanceof HTMLElement && !el.matches(':disabled') ? el : null;
   }
 
-  function findTarget({ page, action, id }) {
+  function findTarget({ page, sort, action, id }) {
     if (page) {
       const same = enabled(region.querySelector(`[data-page="${CSS.escape(page)}"]`));
+      if (same) return same;
+    }
+    if (sort) {
+      const same = enabled(region.querySelector(`[data-sort="${CSS.escape(sort)}"]`));
       if (same) return same;
     }
     if (action) {
@@ -39,7 +43,7 @@ export function createListFocus(region, { fallback } = {}) {
       // Sem foco na região (ex.: o redesenho recursivo, quando o esqueleto já tirou o foco),
       // mantém a intenção registrada antes.
       if (!(active instanceof HTMLElement) || !region.contains(active)) return;
-      intent = { page: active.dataset.page ?? null, action: active.dataset.action ?? null, id: active.dataset.id ?? null };
+      intent = { page: active.dataset.page ?? null, sort: active.dataset.sort ?? null, action: active.dataset.action ?? null, id: active.dataset.id ?? null };
     },
     restore() {
       const current = intent;

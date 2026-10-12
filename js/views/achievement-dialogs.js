@@ -57,7 +57,12 @@ function editorBody(achievement, options, categories) {
 }
 
 /** Abre o editor. `achievement` ausente = nova conquista. `options` e `categories` vêm da lista da mentora. */
-export function openAchievementDialog({ api, achievement = null, options, categories, unlockedBy = [] }) {
+export function openAchievementDialog({ api, achievement = null, options: offered, categories, unlockedBy = [] }) {
+  const locked = Boolean(achievement?.locked);
+  // A conquista padrão de R$ não está entre as regras que a mentora pode escolher, mas precisa aparecer ao ser editada.
+  const options = achievement && !offered.some((o) => o.kind === achievement.ruleKind)
+    ? [{ kind: achievement.ruleKind, label: achievement.ruleLabel, unit: 'R$', decimals: true, max: 100000000 }, ...offered]
+    : offered;
   const isEdit = Boolean(achievement);
   const current = () => dialogKind;
   let dialogKind = achievement?.ruleKind ?? options[0].kind;
@@ -67,7 +72,7 @@ export function openAchievementDialog({ api, achievement = null, options, catego
     description: isEdit ? undefined : 'Defina um marco real que a sua mentoria reconhece. O sistema confere sozinho, com os dados de cada aluna.',
     submitLabel: isEdit ? 'Salvar' : 'Criar conquista',
     className: 'dialog-drawer',
-    body: html`${editorBody(achievement, options, categories)}${unlockedBy.length
+    body: html`${locked ? html`<p class="field-hint" role="note">Conquista padrão de faturamento: você pode mudar o nome, a descrição, a categoria e ativar ou desativar. O critério e o XP ficam fixos, porque a mentora nunca vê o faturamento da aluna.</p>` : ''}${editorBody(achievement, options, categories)}${unlockedBy.length
       ? html`<div class="field"><h3 class="mg-section-title">Quem já desbloqueou</h3><ul class="mg-people">${unlockedBy.map(
           (u) => html`<li class="mg-person"><span class="mg-person-name">${u.name}</span><span class="mg-person-meta">${instantDayMonthYear(u.unlockedAt)}${u.className ? ` · ${u.className}` : ''}</span></li>`,
         )}</ul></div>`
@@ -80,6 +85,11 @@ export function openAchievementDialog({ api, achievement = null, options, catego
     },
     onMount: (dialog) => {
       dialogEl = dialog;
+      if (locked) {
+        dialog.querySelector('#ach-rule').disabled = true;
+        dialog.querySelector('#ach-value').readOnly = true;
+        dialog.querySelector('#ach-xp').readOnly = true;
+      }
       const select = dialog.querySelector('#ach-rule');
       const wrap = dialog.querySelector('#ach-value-wrap');
       const note = dialog.querySelector('#ach-award-note');
@@ -98,6 +108,11 @@ export function openAchievementDialog({ api, achievement = null, options, catego
       });
     },
     onSubmit: async (values) => {
+      if (locked) {
+        const fixed = { title: values.title.trim(), description: values.description.trim(), category: values.category, active: dialogEl.querySelector('#ach-active').checked };
+        await api.patch(`/api/v1/mentora/achievements/${achievement.id}`, { ...fixed, version: achievement.version });
+        return;
+      }
       const kind = values.ruleKind;
       const body = {
         title: values.title.trim(),

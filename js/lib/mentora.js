@@ -140,6 +140,8 @@ export const STUDENT_SORT_OPTIONS = [
   { value: 'progress:asc', label: 'Menor progresso' },
   { value: 'last_login:desc', label: 'Acesso mais recente' },
   { value: 'activity:desc', label: 'Mais ativas' },
+  { value: 'activeStudents:desc', label: 'Mais alunas ativas' },
+  { value: 'activeStudents:asc', label: 'Menos alunas ativas' },
 ];
 
 /** Nome de turma usado no filtro: '' = todas, '__none__' = sem turma. */
@@ -157,11 +159,11 @@ export function goalsSentence(goals) {
 }
 
 // ------------------------------------------------------------------ exportação da lista (CSV no navegador, sem R$)
-const CSV_HEAD = ['Nome', 'E-mail', 'Turma', 'Estado', 'Último acesso', 'Nível'];
+const CSV_HEAD = ['Nome', 'E-mail', 'Turma', 'Estado', 'Último acesso', 'Nível', 'Alunas ativas', 'Alunas ativas atualizado em'];
 
 const csvDate = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' });
 
-/** Linhas do CSV: só dados de cadastro e mentoria (nome, e-mail, turma, estado, último acesso, nível). Nunca valores em reais. */
+/** Linhas do CSV: só dados de cadastro e mentoria (nome, e-mail, turma, estado, último acesso, nível, alunas ativas informadas). Nunca valores em reais. */
 export function studentRows(students) {
   return [
     CSV_HEAD,
@@ -172,6 +174,8 @@ export function studentRows(students) {
       STATUS_LABELS[s.status] ?? s.status,
       s.lastLoginAt ? csvDate.format(new Date(s.lastLoginAt)) : 'Nunca acessou',
       levelText(s.level?.n),
+      Number.isInteger(s.activeStudents?.count) ? s.activeStudents.count : 'Não informou',
+      s.activeStudents?.updatedAt ? csvDate.format(new Date(s.activeStudents.updatedAt)) : '',
     ]),
   ];
 }

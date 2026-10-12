@@ -1,0 +1,80 @@
+/* ==========================================================================
+   IA Indiscutível (link externo) e "Alunas ativas" (número auto-informado pela aluna).
+   Só tokens de tokens.css; sem cor fixa. Alvos de toque de 44 px no celular.
+   ========================================================================== */
+
+/* ---------- indicador de link externo ---------- */
+.ext-mark { display: inline-flex; align-items: center; flex: none; opacity: 0.7; }
+
+/* ---------- botão no topo (entre a ajuda e o sino) ---------- */
+.topbar-btn.topbar-ia { display: inline-flex; align-items: center; gap: 8px; width: auto; padding: 0 12px; border-color: var(--line); background: var(--white); color: var(--green-900); font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.topbar-btn.topbar-ia:hover { background: var(--green-100); color: var(--green-900); }
+.topbar-ia .ext-mark { margin-left: -2px; }
+
+/* ---------- item do menu lateral ---------- */
+.nav-item-ext .ext-mark { margin-left: auto; color: var(--gray-500); }
+.sidebar[data-collapsed='true'] .nav-item-ext .ext-mark { display: none; }
+
+/* ---------- Painel da aluna: duas colunas (alunas ativas + IA) ---------- */
+.dash-duo { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 24px; align-items: stretch; }
+.dash-duo > [hidden] { display: none; }
+.dash-duo:has(> [hidden]) { grid-template-columns: minmax(0, 1fr); }
+
+/* cartão discreto da IA */
+.ia-card { justify-content: space-between; gap: 14px; background: var(--surface-soft, var(--paper-2)); }
+.ia-card-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--green-900); color: var(--gold-500); }
+.ia-card-text h2 { margin: 0 0 6px; }
+.ia-card-text p { margin: 0; font-size: var(--fs-small); line-height: 1.55; color: var(--ink-muted); }
+.ia-card-btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+
+/* ---------- cartão "Minhas alunas ativas" ---------- */
+.as-card { gap: 14px; }
+.as-value { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; margin: 0; }
+.as-number { font-family: var(--font-serif); font-size: 46px; line-height: 1; color: var(--green-900); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.as-meta { display: flex; flex-wrap: wrap; gap: 2px 8px; margin: 0; font-size: var(--fs-small); color: var(--ink-muted); }
+.as-delta { display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border-radius: 7px; font-size: 12.5px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.as-delta.is-up { background: var(--green-100); color: var(--green-900); }
+.as-delta.is-down { background: var(--wine-100); color: var(--wine); }
+.as-delta.is-flat { background: var(--paper-3); color: var(--brown); }
+.as-privacy { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: var(--fs-small); line-height: 1.5; color: var(--ink-muted); }
+.as-privacy svg { flex: none; margin-top: 2px; }
+.as-chart-wrap { max-width: 360px; }
+.as-chart { display: block; width: 100%; height: auto; overflow: visible; }
+.as-chart-bar { fill: var(--green-300); }
+.as-chart-bar.is-now { fill: var(--green-900); }
+.as-chart-gap { stroke: var(--line-strong); stroke-width: 2; stroke-dasharray: 3 3; }
+.as-chart-val { font: 700 11px var(--font-sans); fill: var(--brown); }
+.as-chart-label { font: 600 10.5px var(--font-sans); fill: var(--ink-muted); text-transform: uppercase; }
+
+/* ---------- Minhas alunas (mentora): célula, cabeçalho ordenável e faixas ---------- */
+.as-cell { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.as-cell-top { display: inline-flex; align-items: center; gap: 8px; }
+.as-cell-num { font-size: 15px; font-variant-numeric: tabular-nums; }
+.as-cell-when { font-size: 11.5px; color: var(--ink-muted); white-space: nowrap; }
+.th-sort { display: inline-flex; align-items: center; gap: 4px; margin: -6px -8px; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.th-sort:hover { background: var(--paper-3); color: var(--ink); }
+.th-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.th-sort .th-sort-icon { display: inline-flex; opacity: 0.35; }
+.th-sort.is-active { color: var(--green-900); }
+.th-sort.is-active .th-sort-icon { opacity: 1; }
+.segments-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: var(--space-4); }
+.segments-row > .segments { margin-bottom: 0; }
+.segments-label { font-size: var(--fs-small); font-weight: 700; color: var(--brown); }
+
+/* ---------- Painel da mentora e Perfil ---------- */
+.as-profile-top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; }
+
+@media (max-width: 900px) {
+  .dash-duo { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+}
+
+@media (max-width: 768px) {
+  .topbar-btn.topbar-ia { width: var(--target-min); padding: 0; justify-content: center; border-color: transparent; background: transparent; color: var(--on-green); }
+  .topbar-btn.topbar-ia:hover { background: var(--hover-on-green); color: var(--on-green); }
+  .topbar-ia-label,
+  .topbar-ia .ext-mark { display: none; }
+  .ia-card-btn,
+  .as-card .btn { min-height: var(--target-min); }
+  .as-number { font-size: 40px; }
+  .segments-label { flex-basis: 100%; }
+}

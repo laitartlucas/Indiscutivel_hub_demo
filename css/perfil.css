@@ -113,6 +113,7 @@
 .profile-head-id { display: inline-flex; align-items: center; gap: 12px; }
 .profile-avatar { width: 56px; height: 56px; font-size: 20px; }
 .dash-welcome { background: var(--green-100); border-color: var(--green-300); }
+.dash-welcome .eyebrow { color: var(--green-900); } /* o dourado de texto (gold-text) sobre o verde claro não passa de 4,5:1 */
 .dash-welcome-text { margin: 0; white-space: pre-line; font-family: var(--font-serif); font-size: 18px; color: var(--green-900); }
 .activated-welcome { white-space: pre-line; text-align: center; }
 

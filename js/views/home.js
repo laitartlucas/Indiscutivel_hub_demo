@@ -23,6 +23,8 @@ import { buildQuery } from '../lib/query.js';
 import { dueLabel, focusRing, isOverdue, tzOffsetMinutes } from '../lib/tasks.js';
 import { setTasksBadge } from '../lib/tasks-badge.js';
 import { alert, button, emptyState, skeleton, statCard } from '../ui/components.js';
+import { mountActiveCard } from '../ui/active-students.js';
+import { iaCard } from '../ui/ia-link.js';
 import { loadPipelineConfig } from '../lib/pipeline-config.js';
 import { stageLabel } from '../ui/kanban.js';
 import { focusHeading, mount } from '../lib/dom.js';
@@ -232,6 +234,10 @@ export function renderHome({ root, session, api, navigate }) {
         <div id="dash-stats-people">${skeleton(1)}</div>
         <div id="dash-stats-products">${skeleton(1)}</div>
       </div>
+      <div class="dash-duo">
+        <section class="dash-card as-card" id="dash-active" aria-labelledby="as-title">${skeleton(3)}</section>
+        ${iaCard()}
+      </div>
       <div id="dash-progress"></div>
       <div id="dash-mentoring"></div>
       <div class="dash-split dash-split-flow">
@@ -270,6 +276,9 @@ export function renderHome({ root, session, api, navigate }) {
   const tasksEl = root.querySelector('#dash-tasks-body');
   const progressEl = root.querySelector('#dash-progress');
   const mentoringEl = root.querySelector('#dash-mentoring');
+
+  // Minhas alunas ativas: número auto-informado (a mentora vê só ele). Cartão independente: falha e tenta de novo sozinho.
+  const disposeActive = mountActiveCard({ host: root.querySelector('#dash-active'), api });
 
   // Nível e XP: região opcional. Qualquer falha deixa o cartão de fora, sem afetar o resto do Painel.
   api
@@ -417,6 +426,7 @@ export function renderHome({ root, session, api, navigate }) {
 
   return () => {
     disposed = true;
+    disposeActive();
     dispose();
   };
 }

@@ -2,6 +2,7 @@
 // As mesmas regras e formatos do servidor (server/src/services/mentora-panel.ts + funções SQL da migração 0019) sobre o estado em memória.
 // Só sinais de mentoria: o mock nunca devolve R$, pessoas, leads, empresas, oportunidades, tarefas nem alvos de meta.
 import { CATEGORY_LABELS } from './growth-data.js';
+import { ACTIVE_BAND_IDS, bandOf, compareActive, countError, deltaMonth, lastMonths, networkTotals, upsertMonth } from '../shared/active-students.js';
 import {
   activityLabel,
   ATTENTION_ORDER,
@@ -13,6 +14,7 @@ import {
   lastSeen,
   MAX_ATTENTION,
   progressToNextPct,
+  sessionWhenText,
   SESSION_MODE_LABELS,
   SESSION_MODES,
   SESSION_STATUSES,
@@ -25,7 +27,7 @@ const MINUTE = 60_000;
 const TZ = 180; // dia do XP: Brasília, como o servidor
 const SHORT_MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const VERSION_CONFLICT = 'Esta sessão foi alterada em outra aba ou outro dispositivo. Recarregue e tente de novo.';
-const SORTS = ['name', 'progress', 'level', 'last_login', 'activity'];
+const SORTS = ['name', 'progress', 'level', 'last_login', 'activity', 'activeStudents'];
 
 export function createMentoraDemo(d) {
   const db = () => d.getDb();
@@ -34,6 +36,15 @@ export function createMentoraDemo(d) {
   const addDays = (day, n) => new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10);
   const levelName = (n) => d.LEVELS[n - 1]?.name ?? d.LEVELS[0].name;
   const levelDto = (n) => ({ n, name: levelName(n) });
+
+  // "Alunas ativas": número auto-informado por cada aluna (nunca calculado do CRM). Contrato em docs/design/HANDOFF.md.
+  const activeOf = (u, now) => {
+    const a = u.activeStudents;
+    const last = a?.history?.at(-1);
+    if (!last) return { count: null, updatedAt: null, deltaMonth: null };
+    return { count: last.count, updatedAt: a.updatedAt, deltaMonth: deltaMonth(a.history, now.toISOString()) };
+  };
+  const activeDetail = (u, now) => ({ ...activeOf(u, now), history: lastMonths(u.activeStudents?.history ?? [], now.toISOString()) });
 
   const mentora = () => db().users.find((u) => u.role === 'admin');
   const students = () => db().users.filter((u) => u.role === 'user');
@@ -87,7 +98,9 @@ export function createMentoraDemo(d) {
       .map((e) => {
         const c = db().challenges.find((x) => x.id === e.challengeId);
         if (!c || c.mentoraId !== mentoraId || c.status !== 'published') return null;
-        const ids = new Set(c.actions.map((a) => a.id));
+        // Privacidade (A1): só as ações marcadas pela aluna; as automáticas medem o CRM dela e não aparecem por aluna.
+        const manual = c.actions.filter((a) => a.kind === 'manual');
+        const ids = new Set(manual.map((a) => a.id));
         const doneRows = db().challengeProgress.filter((p) => p.userId === studentId && ids.has(p.actionId));
         const lastDone = doneRows.map((p) => p.doneAt).sort().at(-1) ?? null;
         return {
@@ -95,8 +108,8 @@ export function createMentoraDemo(d) {
           title: c.title,
           endsOn: c.endsOn,
           joinedAt: new Date(e.joinedAt),
-          completedAt: e.completedAt ? new Date(e.completedAt) : null,
-          total: c.actions.length,
+          completedAt: e.completedAt && !c.actions.some((a) => a.kind !== 'manual') ? new Date(e.completedAt) : null,
+          total: manual.length,
           done: doneRows.length,
           lastDoneAt: lastDone ? new Date(lastDone) : null,
         };
@@ -104,9 +117,23 @@ export function createMentoraDemo(d) {
       .filter(Boolean);
   }
 
+  // Conquistas medidas pelo CRM da aluna nunca entram em contagem ou lista por aluna (A1).
+  const CRM_RULES = ['revenue_won_total', 'deals_won_count', 'people_count', 'leads_converted_count', 'tasks_done_count'];
+  const visibleCatalog = () => db().achievements.filter((a) => a.mentoraId === mentora().id && a.active && !a.archivedAt && !CRM_RULES.includes(a.ruleKind));
+  /** Atividades recentes sem os eventos que revelariam um limiar do CRM (conquista de CRM, ação automática de desafio). */
+  function maskedRecent(events) {
+    const hidden = new Set();
+    for (const a of db().achievements) if (CRM_RULES.includes(a.ruleKind)) hidden.add(`ach:${a.id}`);
+    for (const c of db().challenges) {
+      if (c.actions.some((x) => x.kind !== 'manual')) hidden.add(`chal:${c.id}`);
+      for (const x of c.actions) if (x.kind !== 'manual') hidden.add(`chal-action:${x.id}`);
+    }
+    return events.filter((e) => !hidden.has(e.dedupeKey));
+  }
+
   function roster(now) {
     const today = localDay(now.toISOString());
-    const catalog = db().achievements.filter((a) => a.mentoraId === mentora().id && a.active && !a.archivedAt);
+    const catalog = visibleCatalog();
     const catalogIds = new Set(catalog.map((a) => a.id));
     const items = students().map((u) => {
       const signals = signalsOf(u, now);
@@ -164,6 +191,8 @@ export function createMentoraDemo(d) {
       };
     });
   }
+
+  const statusOfStudent = (u) => d.studentDto(u).status;
 
   function overview() {
     d.requireAuth('admin');
@@ -239,6 +268,7 @@ export function createMentoraDemo(d) {
           })),
         },
         kpis,
+        network: networkTotals(students().filter((u) => statusOfStudent(u) !== 'inactive').map((u) => activeOf(u, now).count)),
         evolution: series.map((p) => {
           const [y, m] = p.month.split('-');
           return {
@@ -266,6 +296,7 @@ export function createMentoraDemo(d) {
     q: 'text',
     status: { enum: [...d.STUDENT_STATUSES, 'at_risk'], message: 'Estado inválido.' },
     className: 'text',
+    activeStudents: { enum: ACTIVE_BAND_IDS, message: 'Faixa de alunas ativas inválida.' },
     sort: { enum: SORTS },
     order: { enum: ['asc', 'desc'] },
     ...d.PAGING,
@@ -274,7 +305,9 @@ export function createMentoraDemo(d) {
   function listStudents(searchParams) {
     d.requireAuth('admin');
     const query = d.readQuery(searchParams, LIST_QUERY, { sort: 'name', order: 'asc', ...d.PAGING_DEFAULTS });
-    const { items } = roster(d.clock());
+    const now = d.clock();
+    const { items } = roster(now);
+    const activeById = new Map(students().map((u) => [u.id, activeOf(u, now)]));
     const q = query.q ? d.fold(query.q) : '';
     const classKey = query.className === undefined ? undefined : query.className === '__none__' ? '' : query.className.toLowerCase();
     const scoped = items.filter((i) => {
@@ -287,7 +320,11 @@ export function createMentoraDemo(d) {
     });
     const counts = { all: scoped.length, at_risk: scoped.filter((i) => i.atRisk).length };
     for (const s of ['active', 'invite_pending', 'invite_expired', 'no_invite', 'blocked', 'inactive']) counts[s] = scoped.filter((i) => i.student.status === s).length;
-    const filtered = scoped.filter((i) => (query.status === undefined ? true : query.status === 'at_risk' ? i.atRisk : i.student.status === query.status));
+    const byStatus = scoped.filter((i) => (query.status === undefined ? true : query.status === 'at_risk' ? i.atRisk : i.student.status === query.status));
+    // Contagem por faixa respeita busca, turma e estado, mas não a própria faixa (para mostrar quantas teria cada uma).
+    const activeCounts = Object.fromEntries(ACTIVE_BAND_IDS.map((id) => [id, 0]));
+    for (const i of byStatus) activeCounts[bandOf(activeById.get(i.student.id).count)] += 1;
+    const filtered = byStatus.filter((i) => query.activeStudents === undefined || bandOf(activeById.get(i.student.id).count) === query.activeStudents);
     const dir = query.order === 'asc' ? 1 : -1;
     const key = (i) => {
       switch (query.sort) {
@@ -299,6 +336,10 @@ export function createMentoraDemo(d) {
       }
     };
     filtered.sort((a, b) => {
+      if (query.sort === 'activeStudents') {
+        const byActive = compareActive(activeById.get(a.student.id).count, activeById.get(b.student.id).count, query.order);
+        return byActive || a.student.name.localeCompare(b.student.name, 'pt-BR') || a.student.id.localeCompare(b.student.id);
+      }
       const ka = key(a);
       const kb = key(b);
       const c = typeof ka === 'string' ? ka.localeCompare(kb, 'pt-BR') : ka - kb;
@@ -323,9 +364,11 @@ export function createMentoraDemo(d) {
           activity: i.signals.activity,
           activeDays14: i.activeDays14,
           atRisk: i.atRisk,
+          activeStudents: activeById.get(i.student.id),
         })),
         page: { limit: query.limit, offset: query.offset, total: filtered.length },
         counts,
+        activeCounts,
         classNames,
       },
     };
@@ -358,14 +401,13 @@ export function createMentoraDemo(d) {
     const today = localDay(now.toISOString());
     const sig = signalsOf(u, now);
     const info = d.levelFor(sig.xpTotal);
-    const catalog = db().achievements.filter((a) => a.mentoraId === mentora().id && a.active && !a.archivedAt);
+    const catalog = visibleCatalog();
     const unlocked = db()
       .achievementUnlocks.filter((x) => x.userId === u.id)
       .map((x) => ({ unlock: x, a: catalog.find((c) => c.id === x.achievementId) }))
       .filter((x) => x.a)
       .sort((p, q) => q.unlock.unlockedAt.localeCompare(p.unlock.unlockedAt) || p.a.id.localeCompare(q.a.id));
-    const recent = db()
-      .xpEvents.filter((e) => e.ownerId === u.id)
+    const recent = maskedRecent(db().xpEvents.filter((e) => e.ownerId === u.id))
       .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
       .slice(0, 10);
     const next = nextSessionOf(u.id, now);
@@ -394,6 +436,7 @@ export function createMentoraDemo(d) {
           total: e.total,
           pct: e.total > 0 ? Math.floor((e.done / e.total) * 100) : 0,
         })),
+        activeStudents: activeDetail(u, now),
         activity: { last14: sig.activity, activeDays14: sig.activity.filter((n) => n > 0).length, activeDays28: sig.activeDays28 },
         lastAccessAt: dto.lastLoginAt,
         lastActivityAt: lastSeen({ lastLoginAt: u.lastLoginAt ? new Date(u.lastLoginAt) : null, lastActivityAt: sig.lastActivityAt })?.toISOString() ?? null,
@@ -502,12 +545,10 @@ export function createMentoraDemo(d) {
   };
 
   function notifyScheduled(student, session, now) {
-    const local = new Date(Date.parse(session.startsAt) - TZ * MINUTE);
-    const p = (n) => String(n).padStart(2, '0');
     d.addNotification(student, {
       kind: 'mentoring_session_scheduled',
       title: 'Mentoria marcada',
-      body: `${SESSION_MODE_LABELS[session.mode]}, ${p(local.getUTCDate())}/${p(local.getUTCMonth() + 1)} às ${p(local.getUTCHours())}:${p(local.getUTCMinutes())}${session.topic ? `: ${session.topic}` : ''}`,
+      body: `${SESSION_MODE_LABELS[session.mode]}, ${sessionWhenText(new Date(session.startsAt), db().preferences[student.id]?.timezone)}${session.topic ? `: ${session.topic}` : ''}`,
       link: '#/calendario',
       dedupeKey: `mentoring-session:${session.id}:${Math.floor(Date.parse(session.startsAt) / 1000)}`,
       createdAt: now.toISOString(),
@@ -596,6 +637,30 @@ export function createMentoraDemo(d) {
     return { status: 200, body: { data: rows.map((s) => ({ ...sessionDto(s), studentName: ids.get(s.studentId) })) } };
   }
 
+  // ---------------------------------------------------------------- alunas ativas (a aluna informa o próprio número)
+
+  function getOwnActive(searchParams) {
+    const u = d.requireStudent();
+    d.readQuery(searchParams, {}, {});
+    return { status: 200, body: activeDetail(u, d.clock()) };
+  }
+
+  function putOwnActive(body) {
+    const u = d.requireStudent();
+    const b = requireBody(body);
+    const issues = createIssues();
+    onlyKeys(b, ['count'], issues);
+    if (b.count === undefined || b.count === null) issues.add('count', 'Informe quantas alunas ativas você tem hoje.');
+    else {
+      const problem = countError(b.count);
+      if (problem) issues.add('count', problem);
+    }
+    issues.throwIfAny();
+    const now = d.clock();
+    u.activeStudents = { history: upsertMonth(u.activeStudents?.history ?? [], b.count, now.toISOString()), updatedAt: d.stamp() };
+    return { status: 200, body: activeDetail(u, now) };
+  }
+
   // ---------------------------------------------------------------- lado da aluna (somente leitura)
 
   function studentSessions(searchParams) {
@@ -639,6 +704,8 @@ export function createMentoraDemo(d) {
       ['PATCH', new RegExp(`^mentora/students/${SEG}/sessions/${SEG}$`), (m, _q, body) => patchSession(m[1], m[2], body)],
       ['DELETE', new RegExp(`^mentora/students/${SEG}/sessions/${SEG}$`), (m) => deleteSession(m[1], m[2])],
       ['GET', /^mentora\/sessions$/, (_m, q) => sessionsRange(q)],
+      ['GET', /^account\/active-students$/, (_m, q) => getOwnActive(q)],
+      ['PUT', /^account\/active-students$/, (_m, _q, body) => putOwnActive(body)],
       ['GET', /^mentoring\/sessions$/, (_m, q) => studentSessions(q)],
       ['GET', /^mentoring\/next$/, (_m, q) => studentNext(q)],
     ],

@@ -19,6 +19,8 @@ import {
 } from '../lib/mentora.js';
 import { buildQuery, hashParam, pageInfo, parseSort } from '../lib/query.js';
 import { STATUS_LABELS, statusTone } from '../lib/students.js';
+import { ACTIVE_BANDS, formatCount, updatedAgo, updatedOn } from '../../shared/active-students.js';
+import { deltaBadge } from '../ui/active-students.js';
 import { icon } from '../ih-icons.js';
 import { applySizes } from '../lib/widths.js';
 import { renderShell } from '../shell.js';
@@ -56,6 +58,15 @@ function segments(counts, current) {
   })}</div>`;
 }
 
+function activeSegments(counts, current) {
+  const options = [{ id: '', label: 'Todas' }, ...ACTIVE_BANDS];
+  return html`<span class="segments-label" id="active-segments-label">Alunas ativas</span><div class="segments" role="group" aria-labelledby="active-segments-label">${options.map((o) => {
+    const count = o.id === '' ? null : (counts?.[o.id] ?? null);
+    const label = count === null ? o.label : `${o.label}, ${count}`;
+    return html`<button${attrs({ type: 'button', class: 'segment', 'data-active-band': o.id, 'aria-pressed': String(o.id === current), 'aria-label': `Alunas ativas: ${label}` })}>${o.label}${count === null ? '' : html`<span class="segment-count" aria-hidden="true">${count}</span>`}</button>`;
+  })}</div>`;
+}
+
 // Quem está vendo a lista (proprietária ou equipe): o menu só oferece o que o papel permite. O servidor confere de novo.
 let viewer = null;
 
@@ -69,6 +80,12 @@ const rowMenu = (student) =>
       ...(can(viewer, 'students.manage') && CAN_RESEND.has(student.status) ? [{ label: student.status === 'no_invite' ? 'Enviar convite' : 'Reenviar convite', action: 'resend', id: student.id }] : []),
     ],
   });
+
+/** Alunas ativas informadas pela própria aluna: valor, variação do mês e há quantos dias foi atualizado ("—" quando não informou). */
+function activeCell(active) {
+  if (!active || !Number.isInteger(active.count)) return html`<span class="mp-muted"><span aria-hidden="true">—</span><span class="sr-only">Ainda não informou</span></span>`;
+  return html`<span class="as-cell"><span class="as-cell-top"><strong class="as-cell-num">${formatCount(active.count)}</strong>${deltaBadge(active.deltaMonth)}</span><span${attrs({ class: 'as-cell-when', title: updatedOn(active.updatedAt) })}><span class="sr-only">Atualizado </span>${updatedAgo(active.updatedAt).replace(/^Atualizado /, "")}</span></span>`;
+}
 
 const COLUMNS = [
   {
@@ -94,6 +111,13 @@ const COLUMNS = [
   },
   { key: 'goals', label: 'Meta', nowrap: true, optional: true, render: (s) => html`<span${attrs({ title: goalsSentence(s.goals) })}>${goalsText(s.goals)}<span class="sr-only"> (${goalsSentence(s.goals)})</span></span>` },
   { key: 'level', label: 'Nível', nowrap: true, render: (s) => html`<span${attrs({ class: `mp-level${s.level.n >= 9 ? ' is-high' : ''}` })}>${levelText(s.level.n)}<span class="sr-only">, ${s.level.name}</span></span>` },
+  {
+    key: 'activeStudents',
+    label: 'Alunas ativas',
+    nowrap: true,
+    sortable: true,
+    render: (s) => activeCell(s.activeStudents),
+  },
   {
     key: 'activity',
     label: 'Atividade',
@@ -133,10 +157,11 @@ function classOptions(classNames, current) {
 export function renderStudents({ root, session, api, navigate }) {
   viewer = session.state.user;
   const canCreate = can(viewer, 'students.manage');
-  let state = { q: hashParam('q'), status: '', className: '', ...parseSort(DEFAULT_SORT), offset: 0 };
+  let state = { q: hashParam('q'), status: '', className: '', activeStudents: '', ...parseSort(DEFAULT_SORT), offset: 0 };
   let rows = [];
   let counts = null;
   let classNames = [];
+  let activeCounts = null;
   let exporting = false;
 
   const content = html`<div class="toolbar lead-toolbar">
@@ -148,6 +173,7 @@ export function renderStudents({ root, session, api, navigate }) {
       </div>
     </div>
     <div id="student-segments">${segments(null, '')}</div>
+    <div class="segments-row" id="active-segments">${activeSegments(null, '')}</div>
     <div id="list-region" aria-live="off"></div>`;
 
   const disposeShell = renderShell({
@@ -169,14 +195,19 @@ export function renderStudents({ root, session, api, navigate }) {
   const sortSelect = root.querySelector('#students-sort');
   const clearButton = root.querySelector('#students-clear');
   const segmentRegion = root.querySelector('#student-segments');
+  const activeRegion = root.querySelector('#active-segments');
   const exportButton = root.querySelector('#students-export');
 
-  const hasFilters = () => Boolean(state.q || state.status || state.className);
+  const hasFilters = () => Boolean(state.q || state.status || state.className || state.activeStudents);
 
   function paintFilters() {
     const focused = segmentRegion.contains(document.activeElement) ? document.activeElement.dataset.segment : null;
     mount(segmentRegion, segments(counts, state.status));
     if (focused !== null && focused !== undefined) segmentRegion.querySelector(`[data-segment="${CSS.escape(focused)}"]`)?.focus();
+    const bandFocused = activeRegion.contains(document.activeElement) ? document.activeElement.dataset.activeBand : null;
+    mount(activeRegion, activeSegments(activeCounts, state.activeStudents));
+    if (bandFocused !== null && bandFocused !== undefined) activeRegion.querySelector(`[data-active-band="${CSS.escape(bandFocused)}"]`)?.focus();
+    sortSelect.value = `${state.sort}:${state.order}`;
     const hadFocus = classHost.contains(document.activeElement);
     mount(classHost, selectField({ id: 'students-class', label: 'Turma', value: state.className, options: classOptions(classNames, state.className) }));
     if (hadFocus) classHost.querySelector('select')?.focus();
@@ -201,13 +232,14 @@ export function renderStudents({ root, session, api, navigate }) {
       rows = result.data;
       counts = result.counts ?? counts;
       classNames = result.classNames ?? classNames;
+      activeCounts = result.activeCounts ?? activeCounts;
       paintFilters();
       if (rows.length === 0) {
         mount(region, emptyStudents(hasFilters()));
         return;
       }
       const { limit, offset, total } = result.page;
-      mount(region, html`${dataTable({ caption: 'Lista de alunas', columns: COLUMNS, rows, dense: true })}${pager({ info: pageInfo({ limit, offset, total }), total })}`);
+      mount(region, html`${dataTable({ caption: 'Lista de alunas', columns: COLUMNS, rows, dense: true, sort: { key: state.sort, order: state.order } })}${pager({ info: pageInfo({ limit, offset, total }), total })}`);
       applySizes(region);
     },
   });
@@ -310,7 +342,7 @@ export function renderStudents({ root, session, api, navigate }) {
   function clearFilters() {
     scheduleSearch.cancel();
     search.value = '';
-    setFilters({ q: '', status: '', className: '' });
+    setFilters({ q: '', status: '', className: '', activeStudents: '' });
   }
 
   const scheduleSearch = debounce((value) => setFilters({ q: value.trim() }), SEARCH_DELAY_MS);
@@ -325,6 +357,11 @@ export function renderStudents({ root, session, api, navigate }) {
   });
   root.querySelector('#new-student')?.addEventListener('click', openCreateDialog);
   exportButton.addEventListener('click', exportList);
+  activeRegion.addEventListener('click', (event) => {
+    const choice = event.target.closest('[data-active-band]');
+    if (!choice || choice.getAttribute('aria-pressed') === 'true') return;
+    setFilters({ activeStudents: choice.dataset.activeBand });
+  });
   segmentRegion.addEventListener('click', (event) => {
     const choice = event.target.closest('[data-segment]');
     if (!choice || choice.getAttribute('aria-pressed') === 'true') return;
@@ -337,6 +374,13 @@ export function renderStudents({ root, session, api, navigate }) {
     resend,
   };
   region.addEventListener('click', (event) => {
+    const sortButton = event.target.closest('[data-sort]');
+    if (sortButton) {
+      const key = sortButton.dataset.sort;
+      // Primeiro clique: maior primeiro; clicar de novo inverte. Sem informar sempre fica no fim.
+      setFilters({ sort: key, order: state.sort === key && state.order === 'desc' ? 'asc' : 'desc' });
+      return;
+    }
     const pageButton = event.target.closest('[data-page]');
     if (pageButton) {
       state = { ...state, offset: pageOffset(pageButton.dataset.page, state.offset, LIMIT) };

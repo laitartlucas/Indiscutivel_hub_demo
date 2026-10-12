@@ -7,3 +7,6 @@ export const LOGOUT_FAILED =
 
 /** Versão do app mostrada na Ajuda. Igual à "version" do package.json (conferido em web/test/app-version.test.js). */
 export const APP_VERSION = '1.0.0';
+
+/** Endereço da IA treinada da mentora (GPT próprio). Único lugar do app com este link; abre sempre em nova aba, sem rastreamento. */
+export const IA_INDISCUTIVEL_URL = 'https://chatgpt.com/g/g-685458af503c8191a3e264d3b07c13fa-autoridade-indiscutivel-r-ia-jessica-meurer';

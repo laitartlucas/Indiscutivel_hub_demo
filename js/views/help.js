@@ -16,6 +16,8 @@ const STUDENT_SECTIONS = [
       'O cartão verde "Seu próximo movimento" resume quantas oportunidades estão em andamento, destaca as que esperam contato e leva ao funil.',
       '"Vendas ganhas" soma as oportunidades ganhas e leva aos seus clientes. "Funil de vendas" resume as oportunidades por etapa.',
       '"Foco de hoje" mostra quantas tarefas do dia já foram concluídas. "Pessoas recentes" e "Produtos recentes" são atalhos para os últimos cadastros.',
+      '"Minhas alunas ativas" é o número que você mesma informa: quantas alunas ativas você tem hoje. Toque em "Atualizar" quando mudar; o Painel mostra a data da última atualização, a variação em relação ao mês anterior e os últimos 6 meses. Sua mentora vê só esse número, nunca os seus clientes nem valores.',
+      '"Tire dúvidas com a IA da sua mentora" abre a IA Indiscutível em uma nova aba.',
       'Se a sua mentora redefiniu a sua senha por um link, o Painel avisa por até 30 dias. Toque em "Entendi" para dispensar o aviso neste aparelho.',
     ],
   },
@@ -86,7 +88,7 @@ const STUDENT_SECTIONS = [
     items: [
       'Em Metas você define alvos do mês: faturamento, oportunidades ganhas, novos leads, tarefas concluídas e novas pessoas. O realizado nunca é digitado: o sistema soma os seus dados do mês e mostra o percentual e se você está no ritmo.',
       'Use as setas ao lado do mês para ver outros meses. "Mais ações" em cada meta edita o alvo ou exclui a meta. Uma meta atingida soma 100 XP (uma vez) e avisa no sino.',
-      'Em Meu progresso você vê o nível, o XP e o que falta para o próximo nível. O XP vem de ações reais: tarefa concluída (+10), oportunidade ganha (+50), lead convertido (+30), pessoa nova (+5, até 25 por dia), atividade em lead (+3, até 15 por dia), primeiro acesso do dia (+2) e meta atingida (+100).',
+      'Em Meu progresso você vê o nível, o XP e o que falta para o próximo nível. O XP vem de ações reais: tarefa concluída (+10, até 100 por dia), oportunidade ganha (+50, até 200 por dia), lead convertido (+30, até 150 por dia), pessoa nova (+5, até 25 por dia), atividade em lead (+3, até 15 por dia), primeiro acesso do dia (+2) e meta atingida (+100, uma por meta e mês, até 300 por dia).',
       'Reabrir e concluir de novo a mesma tarefa não repete os pontos. Os pontos já ganhos não se perdem ao excluir o registro.',
       'Em Evolução da comunidade você vê o ranking do mês da sua turma: posição, primeiro nome com a inicial do sobrenome, nível e o XP ganho no mês. É opcional e vem desligado: só aparece quem ativa "Aparecer no ranking da turma" em Meu perfil > Preferências, e quem não participa não vê a lista. Nada do seu CRM entra no ranking.',
     ],
@@ -99,6 +101,15 @@ const STUDENT_SECTIONS = [
       'Escolha o período (30 dias, trimestre ou 12 meses). Cada indicador é comparado com o período anterior equivalente; quando não há base de comparação, a variação não aparece.',
       'A taxa de conversão é ganhas ÷ (ganhas + perdidas) do período. O funil mostra, das oportunidades criadas no período, quantas chegaram a cada etapa.',
       '"Exportar relatório" baixa um arquivo CSV com os números da tela. Ele é gerado no seu navegador, sem enviar nada a terceiros, e abre direto no Excel.',
+    ],
+  },
+  {
+    id: 'ia',
+    title: 'IA Indiscutível',
+    intro: 'A assistente de inteligência artificial treinada com o método da sua mentora.',
+    items: [
+      'Abra pelo botão "IA Indiscutível" na barra do topo, pelo item do menu lateral ou pelo cartão do Painel. Ela abre em uma nova aba, no site do ChatGPT, e você precisa de uma conta lá para conversar.',
+      'O Hub não envia nada do seu CRM para a IA e não acompanha o que você conversa com ela. Evite colar dados de clientes na conversa.',
     ],
   },
   {
@@ -126,7 +137,7 @@ const STUDENT_SECTIONS = [
     intro: 'Quem enxerga o quê.',
     items: [
       'Os dados do seu negócio (Pessoas, Leads, Empresas, Oportunidades, valores, Tarefas e Produtos) são só seus. A sua mentora não os vê, em nenhuma tela nem na busca.',
-      'A sua mentora vê apenas dados da conta: nome, e-mail, turma, situação do acesso e quando você entrou pela última vez.',
+      'A sua mentora vê apenas dados da conta: nome, e-mail, turma, situação do acesso e quando você entrou pela última vez, além do número de "alunas ativas" que você mesma informa.',
     ],
   },
 ];
@@ -138,7 +149,7 @@ const MENTORA_SECTIONS = [
     intro: 'Um retrato do acesso das suas alunas.',
     items: [
       'Os seis indicadores são: total de alunas, ativas, convites pendentes, convites expirados, alunas que nunca acessaram e acessos nas últimas 24 horas.',
-      'O Painel mostra só números de contas e convites. Não há dados de negócio das alunas nele.',
+      'O Painel mostra só números de contas e convites, mais "Alunas ativas das alunas" (a soma do que cada aluna informou) e a média por aluna. Não há dados de negócio das alunas nele.',
     ],
   },
   {
@@ -148,6 +159,7 @@ const MENTORA_SECTIONS = [
     items: [
       'Busque por nome, e-mail ou telefone, filtre pela situação e ordene por nome, cadastro ou último acesso.',
       'As situações são: Ativa, Convite pendente, Convite expirado, Sem convite enviado, Bloqueada e Inativa. Abra uma aluna para ver os dados, os convites e as ações disponíveis.',
+      'A coluna "Alunas ativas" mostra o número que cada aluna informa sobre as alunas dela (cada aluna também é mentora), com a variação em relação ao mês anterior e há quantos dias foi atualizado. "—" quer dizer que ela ainda não informou. Clique no título da coluna (ou use "Ordenar por") para ordenar, e use as faixas (Sem informar, 0, 1 a 5, 6 a 10, 11 ou mais) para filtrar. O número é informado pela própria aluna: o Hub não o calcula do CRM dela.',
     ],
   },
   {
@@ -165,7 +177,7 @@ const MENTORA_SECTIONS = [
     title: 'Redefinição de senha',
     intro: 'Para a aluna que já ativou a conta e perdeu a senha.',
     items: [
-      'Na página dela, o botão "Gerar link de redefinição de senha" cria um link como o do convite. Ao usá-lo, a aluna escolhe uma nova senha e as sessões antigas dela são encerradas.',
+      'Só a mentora (conta principal, não a equipe) vê, na página dela, o botão "Gerar link de redefinição de senha", que cria um link como o do convite. Ao usá-lo, a aluna escolhe uma nova senha e as sessões antigas dela são encerradas.',
       'Por segurança, a aluna vê um aviso no Painel (e uma notificação) dizendo que a senha foi redefinida por um link da mentora.',
     ],
   },
@@ -183,8 +195,17 @@ const MENTORA_SECTIONS = [
     title: 'Privacidade das alunas',
     intro: 'O que você vê e o que não vê.',
     items: [
-      'Você vê dados de conta e de mentoria: nome, e-mail, telefone, turma, programa, plano, situação do acesso e último acesso.',
+      'Você vê dados de conta e de mentoria: nome, e-mail, telefone, turma, programa, plano, situação do acesso e último acesso, além do número de alunas ativas que cada aluna informa.',
       'Você não vê dados de negócio das alunas: Pessoas, Leads, Oportunidades, valores em reais, Tarefas ou Produtos. Nem a busca do topo os encontra. Isso protege a aluna e é garantido pelo próprio banco de dados.',
+    ],
+  },
+  {
+    id: 'ia',
+    title: 'IA Indiscutível',
+    intro: 'A sua IA treinada, aberta para você e para as alunas.',
+    items: [
+      'O botão "IA Indiscutível" (barra do topo e menu lateral) abre a IA em uma nova aba, no site do ChatGPT. As alunas têm o mesmo atalho no Painel delas. A equipe não vê o atalho.',
+      'O Hub não envia dados das alunas para a IA e não acompanha as conversas.',
     ],
   },
   {

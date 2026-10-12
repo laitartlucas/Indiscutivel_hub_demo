@@ -72,13 +72,13 @@ const Errors = {
 // Os números abaixo são conferidos contra o servidor por server/test/xp-domain.test.ts.
 
 const XP_RULES = {
-  task_done: { points: 10 },
-  deal_won: { points: 50 },
-  lead_converted: { points: 30 },
+  task_done: { points: 10, dailyCap: 100 },
+  deal_won: { points: 50, dailyCap: 200 },
+  lead_converted: { points: 30, dailyCap: 150 },
   person_created: { points: 5, dailyCap: 25 },
   lead_activity: { points: 3, dailyCap: 15 },
   daily_access: { points: 2, dailyCap: 2 },
-  goal_reached: { points: 100 },
+  goal_reached: { points: 100, dailyCap: 300 },
   // XP definido pela mentora (conquista, ação e desafio): sem valor fixo.
   achievement_unlocked: { points: 0, variable: true },
   challenge_action: { points: 0, variable: true },
@@ -2731,7 +2731,7 @@ export function createDemoApi(options = {}) {
     };
   }
 
-  /** Meta atingida: +100 XP (uma vez, `goal:<id>`) e um aviso no sino. Mês corrente ou passado, e meta criada até o fim do próprio mês. */
+  /** Meta atingida: +100 XP (uma vez por métrica e mês, `goal:<métrica>:<mês>`) e um aviso no sino. Mês corrente ou passado, e meta criada até o fim do próprio mês. */
   function settleGoals(u, dtos, tz) {
     let awarded = 0;
     const thisMonth = currentMonth(tz);
@@ -2739,13 +2739,13 @@ export function createDemoApi(options = {}) {
       if (dto.status !== 'atingida' || dto.month > thisMonth) continue;
       const row = db.goals.find((g) => g.id === dto.id);
       if (!row || Date.parse(row.createdAt) >= monthBounds(dto.month, tz).end) continue;
-      const points = awardXp(u, 'goal_reached', `goal:${dto.id}`);
+      const points = awardXp(u, 'goal_reached', `goal:${dto.metric}:${dto.month}`);
       if (points === 0) continue;
       awarded += points;
       addNotification(u, {
         kind: 'goal_reached', title: 'Meta atingida',
         body: `Você atingiu a meta de ${metricLabel(dto.metric).toLowerCase()} de ${GOAL_MONTH_NAMES[Number(dto.month.slice(5, 7)) - 1]} de ${dto.month.slice(0, 4)}. +${XP_RULES.goal_reached.points} XP.`,
-        link: '#/metas', dedupeKey: `goal-reached:${dto.id}`, createdAt: clock().toISOString(),
+        link: '#/metas', dedupeKey: `goal-reached:${dto.metric}:${dto.month}`, createdAt: clock().toISOString(),
       });
     }
     return awarded;

@@ -224,6 +224,7 @@ export function mentoraMeta(challenge) {
 export function participantsText(challenge) {
   if (challenge.status === 'draft') return '—';
   const base = plural(challenge.participants, 'participante', 'participantes');
+  if (challenge.completed === null) return `${base} · menos de 3 concluíram`; // desafio com ação automática: contagem pequena não é mostrada
   return challenge.completed > 0 ? `${base} · ${nf.format(challenge.completed)} ${challenge.completed === 1 ? 'concluiu' : 'concluíram'}` : base;
 }
 

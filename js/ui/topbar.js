@@ -16,6 +16,7 @@ import {
 import { buildQuery } from '../lib/query.js';
 import { searchShortcutLabel } from '../lib/shortcuts.js';
 import { icon } from '../ih-icons.js';
+import { canSeeIa, iaTopbarButton } from './ia-link.js';
 import { menuKey, triggerKey } from './menu.js';
 import { notificationList } from './notification-list.js';
 import { createPopover } from './popover.js';
@@ -75,7 +76,7 @@ export function topbarSearchHtml(user) {
   </div>`;
 }
 
-export function topbarToolsHtml() {
+export function topbarToolsHtml(user) {
   const state = getNotifications();
   const unread = state.unreadCount;
   return html`<button type="button" class="topbar-btn topbar-search-btn" id="gsearch-open" aria-label="Buscar" aria-haspopup="dialog" aria-expanded="false" aria-controls="gsearch">${icon('search', { size: 20 })}</button>
@@ -89,6 +90,7 @@ export function topbarToolsHtml() {
         <p class="help-foot">Indiscutível Hub · versão ${APP_VERSION}</p>
       </div>
     </div>
+    ${canSeeIa(user) ? iaTopbarButton() : ''}
     <div class="topbar-pop">
       <button type="button" class="topbar-btn" id="bell-btn" aria-label="${bellLabel(unread)}" title="Notificações" aria-haspopup="dialog" aria-expanded="false" aria-controls="notif-panel">${icon('bell', { size: 20 })}<span class="topbar-dot" id="bell-dot"${unread > 0 ? '' : attrs({ hidden: true })} aria-hidden="true"></span></button>
       <div class="notif-panel" id="notif-panel" role="dialog" aria-labelledby="notif-title" tabindex="-1" hidden>
