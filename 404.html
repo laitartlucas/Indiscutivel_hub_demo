@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Página não encontrada</title>
+  <script>
+    // Site de projeto (usuario.github.io/nome-do-repo/): a primeira parte do caminho é o repositório.
+    var parts = location.pathname.split('/').filter(Boolean);
+    var onProjectSite = location.hostname.slice(-10) === '.github.io' && parts.length > 0;
+    location.replace(onProjectSite ? '/' + parts[0] + '/' : '/');
+  </script>
+</head>
+<body>
+  <p>Página não encontrada. <a href="./">Voltar ao início</a>.</p>
+</body>
+</html>

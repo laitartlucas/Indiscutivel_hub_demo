@@ -1,0 +1,137 @@
+/* ---------- Mentoria: Acompanhamento e Relatórios da mentoria (kit M-Acompanhamento, M-Relatorios) ---------- */
+/* Só tokens. Larguras e alturas que vêm de dados são aplicadas pela CSSOM (lib/widths.js), nunca por style="" (CSP). */
+
+.fu { display: flex; flex-direction: column; gap: 22px; }
+.fu > * { min-width: 0; }
+
+/* ---------- barra de filtros ---------- */
+.fu-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; }
+.fu-toolbar-end { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; }
+.fu-toolbar .field { min-width: 190px; }
+.fu-week-nav { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fu-week-label { font-size: var(--fs-small); color: var(--ink); }
+.fu-icon-btn { min-width: var(--target-min); min-height: var(--target-min); padding: 0; display: inline-grid; place-items: center; }
+#fu-turma-host:empty { display: none; }
+
+/* ---------- cartões de resumo ---------- */
+.fu-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.fu-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; padding: 18px 22px; border-radius: var(--r-card); background: var(--surface); border: 1px solid var(--line); }
+.fu-card-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fu-card-label { font-size: 11px; letter-spacing: 0.16em; font-weight: 700; text-transform: uppercase; color: var(--ink-muted); }
+.fu-card-note { font-size: var(--fs-small); color: var(--ink-muted); overflow-wrap: anywhere; }
+.fu-card-value { flex: none; font-family: var(--font-serif); font-size: 36px; line-height: 1; color: var(--green-900); font-variant-numeric: tabular-nums; }
+.fu-card.is-risk { border-color: var(--wine-border); }
+.fu-card.is-risk .fu-card-label, .fu-card.is-risk .fu-card-value { color: var(--wine); }
+
+/* ---------- tabela ---------- */
+.fu-table th, .fu-table td { padding-inline: 10px; }
+.fu-table th:first-child, .fu-table td:first-child { padding-left: 18px; }
+.fu-table th:last-child, .fu-table td:last-child { padding-right: 18px; }
+.fu-table td { vertical-align: middle; }
+.fu-table .cell-primary { min-width: 190px; }
+.fu-state { display: block; margin-top: 4px; }
+.fu-th-weeks, .fu-td-weeks { min-width: 300px; }
+.fu-weeks-head { display: grid; grid-template-columns: repeat(8, minmax(30px, 1fr)); gap: 4px; text-align: center; letter-spacing: 0.06em; }
+.fu-weeks-head .is-current { color: var(--green-900); text-decoration: underline; text-underline-offset: 3px; }
+
+.fu-cells { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(8, minmax(30px, 1fr)); gap: 4px; }
+.fu-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.fu-cell-box { display: grid; place-items: center; width: 100%; height: 28px; border-radius: 6px; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; transition: transform var(--t-fast) ease; }
+.fu-cell:hover .fu-cell-box { transform: scale(1.1); }
+.fu-cell-box.is-current { outline: 1px dashed var(--gold-text); outline-offset: 1px; }
+.fu-cell-week { display: none; font-size: 10px; color: var(--ink-muted); }
+.is-l0 { background: var(--wine-100); color: var(--wine); }
+.is-l1 { background: var(--paper-3); color: var(--brown); }
+.is-l2 { background: var(--green-300); color: var(--green-900); }
+.is-l3 { background: var(--green-700); color: var(--on-green); }
+.is-l4 { background: var(--green-900); color: var(--gold-500); }
+
+.fu-trend { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-small); font-weight: 700; color: var(--brown); }
+.fu-trend svg { stroke: currentColor; }
+.fu-trend.is-up { color: var(--success-text); }
+.fu-trend.is-down { color: var(--wine); }
+
+.fu-plan { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.fu-plan-text { margin: 0; max-width: 260px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; color: var(--brown); }
+.fu-plan .btn { min-height: var(--target-min); }
+.fu-next { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; color: var(--brown); }
+
+.fu-check { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 96px; min-height: var(--target-min); padding: 0 14px; border-radius: var(--r-md); border: 1px solid var(--line-btn); background: var(--white); color: var(--brown); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background var(--t-fast) ease; }
+.fu-check:hover { background: var(--paper-2); }
+.fu-check:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.fu-check[aria-pressed='true'] { background: var(--green-100); border-color: var(--success); color: var(--success-ink); }
+.fu-check svg { stroke: currentColor; }
+
+.fu-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; font-size: var(--fs-caption); color: var(--ink-muted); }
+.fu-legend-item { display: inline-flex; }
+.fu-swatch { display: block; width: 14px; height: 14px; border-radius: 4px; }
+
+/* ---------- Relatórios da mentoria ---------- */
+.mr-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; }
+.mr-filters .field { min-width: 210px; }
+#mr-period { display: contents; }
+.rp-kpi.is-dark { background: var(--green-900); border-color: var(--green-900); color: var(--on-green); }
+.rp-kpi.is-dark .rp-kpi-label { color: var(--gold-500); }
+.rp-kpi.is-dark .rp-kpi-value { color: var(--on-green); }
+.rp-kpi.is-dark .rp-kpi-delta, .rp-kpi.is-dark .rp-kpi-note { color: var(--on-green-muted); }
+.rp-kpi.is-dark .rp-kpi-delta.is-up { color: var(--gold-500); }
+.rp-kpi.is-dark .rp-kpi-delta.is-down { color: var(--on-green); }
+.mr-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.mr-duo > * { min-width: 0; }
+.mr-area { height: 150px; }
+
+.mr-mods { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.mr-mod-head { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.mr-mod-name { font-weight: 600; }
+.mr-mod-val { color: var(--ink-muted); text-align: right; }
+.mr-fill-1 { background: var(--green-900); }
+.mr-fill-2 { background: var(--green-700); }
+.mr-fill-3 { background: var(--green-500); }
+.mr-fill-4 { background: var(--green-300); }
+.mr-fill-5 { background: var(--gold-500); }
+.mr-fill-6 { background: var(--gold-text); }
+.mr-fill-7 { background: var(--line-btn); }
+
+.mr-top { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.mr-top-row { display: flex; align-items: center; gap: 12px; min-height: var(--target-min); padding: 6px; border-radius: var(--r-md); color: var(--ink); text-decoration: none; transition: background var(--t-fast) ease; }
+.mr-top-row:hover { background: var(--paper-2); }
+.mr-top-pos { flex: none; width: 20px; font-family: var(--font-serif); font-size: 18px; color: var(--gold-text); }
+.mr-top-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.mr-top-name { font-size: 13.5px; font-weight: 700; overflow-wrap: anywhere; }
+.mr-top-sub { font-size: 12px; color: var(--ink-muted); }
+.mr-top-xp { flex: none; font-size: 13px; font-weight: 700; color: var(--success-text); }
+
+@media (max-width: 1180px) {
+  .mr-duo { grid-template-columns: minmax(0, 1fr); }
+}
+@media (min-width: 769px) and (max-width: 1320px) {
+  /* tabela compacta: cabe sem rolagem lateral em 1024-1280 px (os 3 cartões de resumo continuam lado a lado) */
+  .fu-table th, .fu-table td { padding-inline: 7px; }
+  .fu-table .cell-primary { min-width: 150px; }
+  .fu-th-weeks, .fu-td-weeks { min-width: 236px; }
+  .fu-weeks-head, .fu-cells { grid-template-columns: repeat(8, minmax(24px, 1fr)); gap: 3px; }
+  .fu-plan-text { max-width: 170px; }
+  .fu-check { min-width: 80px; padding: 0 10px; }
+  .fu-card { padding: 16px 18px; }
+  .fu-card-value { font-size: 30px; }
+}
+@media (max-width: 900px) {
+  .fu-summary { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}
+@media (max-width: 768px) {
+  .fu-toolbar, .fu-toolbar-end { align-items: stretch; }
+  .fu-toolbar-end, .fu-toolbar .field, .mr-filters .field { width: 100%; min-width: 0; }
+  .fu .seg { width: 100%; flex-wrap: wrap; }
+  .fu .seg-btn { flex: 1 1 auto; }
+  .fu-card { padding: 16px; }
+  .fu-card-value { font-size: 30px; }
+  .fu-th-weeks, .fu-td-weeks { min-width: 0; }
+  .fu-table td.fu-td-weeks { display: block; }
+  .fu-table td.fu-td-weeks::before { display: block; margin-bottom: 6px; }
+  .fu-cells { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; }
+  .fu-cell-week { display: block; }
+  .fu-cell-box { font-size: 10px; }
+  .fu-plan-text { max-width: none; }
+  .fu-legend { justify-content: flex-start; }
+  .mr-filters { align-items: stretch; }
+}

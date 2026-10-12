@@ -1,0 +1,46 @@
+/* ---------- Mentoria (telas da mentora) — só o que o Painel/cartões do kit não cobrem ---------- */
+/* Estado vazio dentro de um cartão do Painel: o cartão já tem respiro, o vazio não precisa do seu. */
+.mentora-empty { padding: 8px 20px; }
+.mentora-empty .empty { padding: 32px 12px; }
+
+/* ---------- Perfil da aluna ---------- */
+/* Os botões ficam direto no cabeçalho (.page-header-actions): o invólucro só carrega o id e some do layout. */
+.profile-actions { display: contents; }
+.page-header-title h1,
+.page-header-title .page-subtitle,
+.page-header-title .eyebrow { overflow-wrap: anywhere; }
+/* Sublinhado sempre: o link divide a linha com o texto "Mentoria ·" na mesma cor, e cor sozinha não distingue um link. */
+.back-link { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.back-link:hover { text-decoration-thickness: 2px; }
+/* Pares rótulo/valor dos cartões Dados e Acesso: rótulo discreto à esquerda, valor à direita; empilha no celular. */
+.profile-data { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; }
+.profile-data > div { display: grid; grid-template-columns: minmax(96px, 150px) minmax(0, 1fr); gap: var(--space-3); align-items: center; padding: 10px 0; border-top: 1px solid var(--line-soft); }
+.profile-data > div:first-child { padding-top: 0; border-top: 0; }
+.profile-data dt { font-size: var(--fs-small); color: var(--ink-muted); }
+.profile-data dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.profile-subhead { margin: 0; font-size: var(--fs-small); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-muted); }
+.invite-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.invite-item { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-3); padding: 12px 14px; border: 1px solid var(--line-soft); border-radius: var(--r-md); }
+.invite-meta { display: flex; flex-wrap: wrap; gap: 2px var(--space-3); min-width: 0; font-size: var(--fs-small); color: var(--ink-muted); }
+@media (max-width: 480px) {
+  .profile-data > div { grid-template-columns: minmax(0, 1fr); gap: 2px; align-items: start; }
+}
+
+/* ---------- Minhas alunas ---------- */
+/* Caixa de marcação do diálogo "Nova aluna": o rótulo inteiro é a área de toque (44 px). */
+.profile-card { max-width: 720px; }
+.field-check { gap: 4px; }
+.check-label { display: flex; align-items: center; gap: var(--space-3); min-height: var(--target-min); font-size: var(--fs-body); font-weight: 600; color: var(--brown); cursor: pointer; }
+.check-input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--accent-solid); cursor: pointer; }
+.check-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Aviso de "Link copiado." dentro do diálogo do link (o toast fica atrás do fundo do diálogo). */
+.dialog-body > .copy-feedback { min-height: 1.4em; margin: 0; color: var(--good); font-size: var(--text-sm); font-weight: 600; }
+/* "Ver perfil" é um link com cara de botão pequeno: no celular volta aos 44 px de área de toque. */
+@media (max-width: 768px) {
+  .data-table .btn-sm { min-height: var(--target-min); }
+  .page-header-actions .btn { min-height: var(--target-min); }
+  .back-link { display: inline-flex; align-items: center; min-height: var(--target-min); }
+}
+@media (max-width: 480px) {
+  .page-header-actions { flex-direction: column; align-items: stretch; justify-content: flex-start; width: 100%; }
+}

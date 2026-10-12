@@ -1,0 +1,52 @@
+/* ---------- Evolução da comunidade (kit A-Ranking) ---------- */
+/* Só tokens. Larguras que vêm de dados são aplicadas pela CSSOM (lib/widths.js), nunca por style="" (CSP). */
+
+.rk-summary { margin: 0; font-size: var(--fs-body); font-weight: 600; color: var(--green-900); outline: none; }
+.rk-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.rk-podium-card { display: flex; align-items: center; gap: 18px; min-width: 0; padding: 22px 24px; border-radius: 18px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); transition: transform var(--t-base) ease, box-shadow var(--t-base) ease; }
+.rk-podium-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+.rk-podium-card.is-first { background: var(--green-900); color: var(--on-green); border-color: var(--green-900); }
+.rk-podium-card.is-me { box-shadow: 0 0 0 2px var(--white), 0 0 0 4px var(--gold-500); }
+.rk-podium-pos { flex: none; width: 64px; font-family: var(--font-serif); font-size: 54px; line-height: 1; color: var(--gold-text); }
+.is-first .rk-podium-pos { color: var(--gold-500); }
+.rk-avatar { flex: none; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; background: var(--brown); color: var(--on-green); font-family: var(--font-serif); font-size: 17px; overflow: hidden; }
+.is-first .rk-avatar { background: var(--gold-500); color: var(--green-900); }
+.rk-avatar-sm { width: 34px; height: 34px; font-size: 13px; }
+.rk-podium-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rk-podium-name { font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+.rk-podium-level { font-size: var(--fs-small); color: var(--ink-muted); }
+.is-first .rk-podium-level { color: var(--on-green-muted); }
+.rk-podium-gain { flex: none; font-size: 13px; font-weight: 700; color: var(--success-text); }
+.is-first .rk-podium-gain { color: var(--gold-500); }
+.rk-you { display: inline-flex; align-items: center; min-height: 20px; padding: 0 8px; border-radius: var(--r-badge); background: var(--gold-100); color: var(--gold-700t); font-size: 11px; font-weight: 700; letter-spacing: 0.02em; }
+.is-first .rk-you { background: var(--gold-500); color: var(--green-900); }
+
+.rk-table .table-wrap { border-radius: 18px; }
+.rk-pos { font-family: var(--font-serif); font-size: 22px; color: var(--brown); }
+.rk-row.is-me,
+.rk-row.is-me:hover { background: var(--gold-wash); }
+.rk-row.is-me .person-name { font-weight: 800; }
+.rk-row .person-cell { gap: 12px; flex-wrap: wrap; }
+.rk-row .rk-avatar-sm { box-shadow: none; }
+.rk-row.is-me .rk-avatar-sm { box-shadow: 0 0 0 2px var(--white), 0 0 0 3px var(--gold-500); }
+.rk-gain { display: flex; align-items: center; gap: 12px; }
+.rk-bar { flex: none; width: 90px; height: 6px; border-radius: 3px; background: var(--paper-3); overflow: hidden; }
+.rk-bar-fill { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--green-900); transform-origin: left center; animation: grow-x 1s var(--ease) both; }
+.rk-row.is-me .rk-bar-fill { background: var(--gold-text); }
+.rk-gain-text { font-size: var(--fs-small); font-weight: 700; color: var(--success-text); white-space: nowrap; }
+
+.rk-alone { margin: 0; padding: 14px 18px; border-radius: var(--r-card); background: var(--paper-2); border: 1px solid var(--line); color: var(--ink-muted); font-size: var(--fs-small); }
+.rk-note { margin: 0; font-size: var(--fs-small); color: var(--ink-muted); }
+.rk-note a { color: var(--green-900); font-weight: 600; text-decoration: underline; }
+.rk-optin-actions { justify-content: center; flex-wrap: wrap; }
+
+@media (max-width: 1100px) {
+  .rk-podium { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .rk-podium-card { flex-wrap: wrap; padding: 18px 20px; gap: 14px; }
+  .rk-podium-pos { font-size: 44px; width: 36px; }
+  .rk-podium-main { flex: 1 1 140px; }
+  .rk-podium-gain { flex-basis: 100%; padding-left: 50px; }
+  .rk-row .rk-pos { font-size: 20px; }
+}

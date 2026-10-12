@@ -1,0 +1,173 @@
+/* ==========================================================================
+   INDISCUTÍVEL HUB — Design tokens
+   Valores copiados exatamente do kit de design (docs/design/HANDOFF.md).
+   Os nomes --green-900, --gold-500 etc. são os nomes originais do kit;
+   os nomes --bg, --ink, --accent etc. são os nomes já usados no resto do
+   código deste projeto (componentes, testes) — servem de apelido para os
+   mesmos valores, para não precisar renomear cada seletor CSS existente.
+   Cores em #rrggbb (para o teste de contraste em web/test/contrast.test.js).
+   ========================================================================== */
+:root {
+  color-scheme: light;
+
+  /* ---- Marca (valores exatos do kit) ---- */
+  --green-900: #032a15;
+  --green-800: #0b3a21;
+  --green-950: #021e0f;
+  --green-700: #1a4a30;
+  --green-500: #5e8a6e;
+  --green-300: #b7cdbe;
+  --green-100: #e4ede6;
+
+  --gold-500: #dcc289;
+  --gold-400: #e6d2a2;
+  --gold-600: #cdb176;
+  --gold-text: #8b6f3a;
+  --gold-100: #f6eedb;
+  --gold-edge: #e8d9b5; /* borda de cartão premium/concluído */
+  --gold-700t: #7a5a1e;
+
+  --offwhite: #fbfaf7;
+  --paper: #f4f1ea;
+  --paper-2: #f7f4ee;
+  --white: #ffffff;
+  --black: #1d1c1d;
+  --gray-500: #9b968a; /* só placeholder, ícones e texto sobre verde — nunca texto corrido sobre claro */
+  --gray-text: #6e695e;
+  --brown: #45362b;
+  --wine: #4c0001;
+  --wine-100: #f3e3e1;
+  --success: #2e7d4f;
+  --success-text: #1f5c39;
+
+  --line: #e7e2d6;
+  --line-soft: #f0ece3;
+  --line-input: #dcd6c8; /* borda de campo em repouso — discreta de propósito, o foco é que precisa ser forte */
+  --line-strong: #b9b2a3; /* hover de input, checkbox vazio — não é a borda de repouso */
+
+  /* ---- Apelidos usados pelo restante do código/testes deste projeto ---- */
+  --bg: var(--offwhite);
+  --surface: var(--white);
+  --surface-raised: var(--white);
+  --surface-hover: var(--paper-2);
+  --ink: var(--black);
+  --ink-muted: var(--gray-text);
+  --ink-faint: var(--gray-500); /* só para placeholder/ícone/decorativo — nunca texto corrido */
+  --accent: var(--green-900);
+  --accent-solid: var(--green-900);
+  --accent-solid-hover: var(--green-800);
+  --accent-text: var(--green-900);
+  --accent-soft: rgba(3, 42, 21, 0.08);
+  --scrim: var(--overlay);
+  --focus: var(--green-900);
+  --focus-ring: 0 0 0 3px rgba(220, 194, 137, 0.55);
+  --error-ring: 0 0 0 3px rgba(76, 0, 1, 0.12);
+  --gold: var(--gold-500);
+  --good: var(--success-text);
+  --warn: var(--gold-700t);
+  --bad: var(--wine);
+  --bad-solid: var(--wine);
+  --bad-solid-hover: #660a0b;
+  --on-green: var(--offwhite);
+  --on-green-muted: #c6ccc4;
+  --overlay: rgba(3, 42, 21, 0.45);
+
+  /* ---- Sobre o verde (sidebar, topbar mobile) e divisórias do shell: valores exatos do kit ---- */
+  --on-green-nav: #bfc7bf;
+  --on-green-btn: #c9cec6;
+  --line-topbar: #ece7dc;
+  --line-on-green: rgba(220, 194, 137, 0.14);
+  --line-on-green-soft: rgba(220, 194, 137, 0.12);
+  --line-on-green-btn: rgba(220, 194, 137, 0.18);
+  --gold-wash: rgba(220, 194, 137, 0.14);
+  --hover-on-green: rgba(251, 250, 247, 0.07);
+
+  /* ---- Estados e botões secundários (valores do kit) ---- */
+  --line-btn: #d8d2c4;
+  --paper-3: #efebe2;
+  --success-ink: #0e4a2a;
+  --neutral-bg: #eeece6;
+  --neutral-ink: #5e594f;
+  --warn-dot: #c9a55c;
+  --wine-border: #e9cfcb;
+  --drop-bg: #efe8d6;
+
+  /* ---- Tipografia (Manrope/Bodoni Moda entram quando as fontes forem baixadas) ---- */
+  --font-serif: 'Ivy Presto Display', 'Bodoni Moda Variable', 'Bodoni Moda', Didot, Georgia, serif;
+  --font-sans: 'Manrope Variable', 'Manrope', 'Helvetica Neue', Arial, sans-serif;
+  --font-display: var(--font-serif);
+  --font-body: var(--font-sans);
+
+  --fs-display: 56px;
+  --fs-h1: 38px;
+  --fs-h1-dash: 42px;
+  --fs-h2: 24px;
+  --fs-h3: 20px;
+  --fs-kpi: 30px;
+  --fs-body: 14px;
+  --fs-table: 13.5px;
+  --fs-small: 12.5px;
+  --fs-caption: 12px;
+  --fs-eyebrow: 11px;
+
+  /* apelidos da escala tipográfica já usada nos componentes existentes */
+  --text-xs: var(--fs-caption);
+  --text-sm: var(--fs-small);
+  --text-md: var(--fs-body);
+  --text-lg: 1rem;
+  --text-xl: var(--fs-h3);
+  --text-2xl: var(--fs-h2);
+
+  /* ---- Espaço (base 4, valores exatos do kit) ---- */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px;
+  --s-6: 24px; --s-8: 32px; --s-10: 40px; --s-12: 48px;
+  --space-1: var(--s-1);
+  --space-2: var(--s-2);
+  --space-3: var(--s-3);
+  --space-4: var(--s-4);
+  --space-5: var(--s-6);
+  --space-6: var(--s-8);
+  --space-7: var(--s-12);
+
+  /* ---- Raios ---- */
+  --r-badge: 999px;
+  --r-sm: 8px;
+  --r-input: 10px;
+  --r-md: 12px;
+  --r-card: 16px;
+  --r-card-lg: 20px;
+  --r-modal: 24px;
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-card-lg);
+  --radius-full: var(--r-badge);
+
+  /* ---- Elevação ---- */
+  --shadow-hover: 0 18px 36px -24px rgba(3, 42, 21, 0.45);
+  --shadow-pop: 0 22px 44px -22px rgba(3, 42, 21, 0.45);
+  --shadow-modal: 0 40px 80px -30px rgba(3, 42, 21, 0.6);
+  --shadow-drop: 0 30px 60px -24px rgba(3, 42, 21, 0.45); /* painéis sob o sino e a busca (kit A-Notificacoes) */
+  --unread-bg: #fdfaf2; /* fundo de notificação não lida */
+
+  /* ---- Layout ---- */
+  --sidebar-w: 264px;
+  --sidebar-w-collapsed: 80px;
+  --topbar-h: 72px;
+  --page-pad-x: 48px;
+  --page-pad-y: 32px;
+  --control-h: 44px;
+  --target-min: var(--control-h);
+
+  /* ---- Movimento ---- */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --t-fast: 150ms;
+  --t-base: 200ms;
+  --t-slow: 350ms;
+  --dur-fast: var(--t-fast);
+  --dur-base: var(--t-base);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --t-fast: 0ms; --t-base: 0ms; --t-slow: 0ms; --dur-fast: 0ms; --dur-base: 0ms; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

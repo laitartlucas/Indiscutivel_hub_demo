@@ -1,0 +1,17 @@
+/* Os nomes das famílias são os mesmos usados em --font-sans / --font-serif (tokens.css).
+   Ivy Presto Display (serifa oficial do kit) entra aqui quando a licença chegar: coloque os
+   .woff2 em web/fonts/ivy-presto/ e acrescente o @font-face; até lá a Bodoni Moda é a substituta. */
+@font-face {
+  font-family: 'Manrope Variable';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('../fonts/manrope-latin-wght-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Bodoni Moda Variable';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('../fonts/bodoni-moda-latin-wght-normal.woff2') format('woff2');
+}

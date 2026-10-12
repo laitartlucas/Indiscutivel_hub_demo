@@ -1,0 +1,83 @@
+/* ---------- Empresas (kit A-Empresas) ---------- */
+
+/* 3 cartões do topo: ativas, pipeline e maior conta (o terceiro em verde) */
+.co-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-bottom: var(--space-4); }
+.co-kpi { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 20px 24px; border-radius: var(--r-card); background: var(--white); border: 1px solid var(--line); transition: transform 200ms ease, box-shadow 200ms ease; }
+.co-kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+.co-kpi-label { font-size: var(--fs-eyebrow); font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-muted); }
+.co-kpi-value { font-family: var(--font-serif); font-size: 32px; line-height: 1.1; color: var(--green-900); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.co-kpi-value.is-name { font-size: 26px; }
+.co-kpi-note { font-size: var(--fs-small); color: var(--ink-muted); }
+.co-kpi-dark { background: var(--green-900); border-color: var(--green-900); }
+.co-kpi-dark .co-kpi-label { color: var(--gold-500); }
+.co-kpi-dark .co-kpi-value { color: var(--on-green); }
+.co-kpi-dark .co-kpi-note { color: var(--on-green-muted); }
+.co-toolbar { margin-bottom: var(--space-4); }
+
+/* avatar-logo: iniciais num quadrado arredondado; 5 variações fixas por empresa, só com tokens */
+.co-logo { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 10px; font-family: var(--font-serif); font-size: 15px; line-height: 1; }
+.co-logo-0 { background: var(--green-900); color: var(--gold-500); }
+.co-logo-1 { background: var(--brown); color: var(--offwhite); }
+.co-logo-2 { background: var(--gold-500); color: var(--green-900); }
+.co-logo-3 { background: var(--green-100); color: var(--green-900); }
+.co-logo-4 { background: var(--paper); color: var(--brown); box-shadow: inset 0 0 0 1px var(--line); }
+.co-logo-sm { width: 26px; height: 26px; border-radius: 7px; font-size: 12px; }
+.co-logo-xl { width: 72px; height: 72px; border-radius: 18px; font-size: 26px; }
+
+/* tabela */
+.co-cell { display: flex; align-items: center; gap: 12px; min-width: 0; color: var(--ink); text-decoration: none; }
+.co-cell:hover .co-cell-name { color: var(--green-900); text-decoration: underline; text-underline-offset: 3px; }
+.co-cell-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.co-cell-name { font-weight: 700; overflow-wrap: anywhere; }
+.co-cell-sub { font-size: var(--fs-caption); color: var(--ink-muted); }
+.co-pipe { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.co-pipe-value { min-width: 78px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.co-bar { flex: 1; min-width: 56px; height: 6px; border-radius: 3px; background: var(--paper-3); overflow: hidden; }
+.co-bar-fill { display: block; width: 0; height: 100%; border-radius: 3px; background: var(--green-900); transform-origin: left center; animation: co-grow 1.1s var(--ease) both; }
+@keyframes co-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* link da empresa em Pessoas e Clientes */
+.person-company-link { color: var(--green-900); font-weight: 600; text-decoration: none; }
+.person-company-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* opção "Criar empresa" do combobox */
+.combobox-option-create { font-weight: 700; color: var(--green-900); border-top: 1px solid var(--line-soft); }
+
+/* diálogo: cidade larga + UF estreita */
+.form-grid-city { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: var(--space-3); }
+
+/* detalhe */
+.co-hero .lead-hero-main { gap: 8px; }
+.co-site { color: var(--green-900); font-weight: 600; overflow-wrap: anywhere; }
+.co-stats { display: flex; gap: 28px; margin: 0; padding: 0 0 0 28px; border-left: 1px solid var(--line-soft); }
+.co-stat { display: flex; flex-direction: column; gap: 4px; margin: 0; min-width: 0; }
+.co-stat dd { margin: 0; }
+.co-stat-value { font-family: var(--font-serif); font-size: 30px; line-height: 1; color: var(--green-900); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.co-stat-value.is-gold { color: var(--gold-text); }
+.co-notes { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--brown); white-space: pre-wrap; overflow-wrap: anywhere; }
+.co-none { margin: 0; font-size: 13px; }
+.co-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.co-list-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line-soft); }
+.co-list-row:first-child { border-top: 0; padding-top: 0; }
+.co-list-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.co-list-link { color: var(--ink); text-decoration: none; }
+.co-list-link:hover .co-list-name { color: var(--green-900); text-decoration: underline; text-underline-offset: 3px; }
+.co-list-name { font-weight: 600; overflow-wrap: anywhere; }
+.co-list-sub { font-size: var(--fs-caption); color: var(--ink-muted); overflow-wrap: anywhere; }
+.co-list-aside { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; font-size: var(--fs-caption); color: var(--ink-muted); text-align: right; }
+
+@media (max-width: 1180px) {
+  .co-kpis { gap: 12px; }
+  .co-kpi { padding: 16px 18px; }
+  .co-kpi-value { font-size: 26px; }
+  .co-kpi-value.is-name { font-size: 22px; }
+}
+
+@media (max-width: 768px) {
+  .co-kpis { grid-template-columns: minmax(0, 1fr); }
+  .co-pipe-value { min-width: 0; }
+  .co-stats { flex-wrap: wrap; gap: 16px 24px; flex-basis: 100%; padding: 14px 0 0; border-left: 0; border-top: 1px solid var(--line-soft); }
+  .form-grid-city { grid-template-columns: minmax(0, 1fr) 96px; }
+  .co-list-row { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .co-list-aside { justify-content: flex-start; text-align: left; }
+}

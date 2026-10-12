@@ -1,0 +1,100 @@
+/* ---------- Oportunidade, detalhe (kit A-Oportunidade) ---------- */
+
+.btn-gold { background: var(--gold-500); color: var(--green-900); font-weight: 700; }
+.btn-gold:hover:not(:disabled) { background: var(--gold-400); color: var(--green-900); box-shadow: 0 10px 22px -14px rgba(3, 42, 21, 0.5); }
+.btn-gold svg { stroke: var(--green-900); }
+.btn-lost { background: var(--white); border-color: var(--wine-border); color: var(--wine); }
+.btn-lost:hover:not(:disabled) { background: var(--wine-100); color: var(--wine); }
+
+.od-hero { display: flex; flex-direction: column; gap: 22px; margin-bottom: 22px; padding: 26px 28px; border-radius: var(--r-card-lg); background: var(--white); border: 1px solid var(--line); }
+.od-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.od-hero-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.od-who { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; font-size: 13.5px; color: var(--brown); }
+.od-company { display: inline-flex; align-items: center; gap: 8px; color: var(--green-900); text-decoration: none; }
+.od-company strong { font-weight: 700; }
+.od-company:hover strong { text-decoration: underline; text-underline-offset: 3px; }
+.od-dot { color: var(--gray-text); }
+.od-reason, .od-closed { margin: 0; font-size: 13px; color: var(--brown); overflow-wrap: anywhere; }
+.od-value { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.od-value-amount { font-family: var(--font-serif); font-size: 42px; line-height: 1; color: var(--green-900); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* stepper das etapas */
+.od-flow { display: flex; align-items: center; gap: 16px; }
+.od-stepper { flex: 1; min-width: 0; margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.od-step { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.od-step-bar { display: block; height: 6px; border-radius: 3px; background: var(--paper-3); }
+.od-step.is-done .od-step-bar { background: var(--green-900); }
+.od-step.is-current .od-step-bar { background: var(--gold-500); }
+.od-step-label { font-size: 12px; font-weight: 500; color: var(--ink-muted); overflow-wrap: anywhere; }
+.od-step.is-done .od-step-label { color: var(--ink); }
+.od-step.is-current .od-step-label { font-weight: 700; color: var(--gold-text); }
+.od-flow-moves { display: flex; flex-wrap: wrap; gap: 8px; flex: none; }
+.od-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
+
+/* previsão de fechamento (verde) */
+.od-forecast { display: flex; flex-direction: column; gap: 14px; padding: 22px 24px; border-radius: var(--r-card-lg); background: var(--green-900); color: var(--on-green); --focus: var(--gold-500); }
+.od-forecast-eyebrow { margin: 0; font-family: var(--font-sans); font-size: var(--fs-eyebrow); font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold-500); }
+.od-forecast-line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
+.od-forecast-date { font-family: var(--font-serif); font-size: 30px; line-height: 1.1; }
+.od-forecast-date.is-empty { font-size: 24px; color: var(--on-green-muted); }
+.od-forecast-rel { font-size: 13px; color: var(--on-green-muted); }
+.od-forecast-rel.is-late { color: var(--wine-100); font-weight: 700; }
+.od-forecast-set { min-height: 32px; padding: 0 4px; border: 0; background: transparent; font: inherit; font-size: 13px; font-weight: 700; color: var(--gold-500); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.od-prob { display: flex; flex-direction: column; gap: 8px; }
+.od-prob-line { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--on-green-muted); }
+.od-prob-line strong { color: var(--gold-500); }
+.od-prob-track { height: 6px; border-radius: 3px; background: rgba(251, 250, 247, 0.12); overflow: hidden; }
+.od-prob-fill { width: 0; height: 100%; border-radius: 3px; background: var(--gold-500); transform-origin: left center; animation: co-grow 1.1s var(--ease) both; }
+.od-forecast-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; padding-top: 10px; border-top: 1px solid var(--line-on-green); font-size: 12.5px; color: var(--on-green-muted); }
+.od-forecast-foot strong { color: var(--on-green); }
+
+/* cartões laterais */
+.od-card { gap: 12px; }
+.od-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.od-card-count { font-size: 12.5px; font-weight: 700; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.od-link-btn { min-height: 32px; padding: 0 4px; border: 0; background: transparent; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--green-900); cursor: pointer; }
+.od-link-btn:hover { text-decoration: underline; text-underline-offset: 3px; }
+.od-none { margin: 0; font-size: 13px; }
+.od-tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.od-task { display: flex; align-items: center; gap: 12px; padding: 9px 6px; border-radius: var(--r-input); }
+.od-task:hover { background: var(--paper-2); }
+.od-task-check { width: 18px; height: 18px; flex: none; display: grid; place-items: center; box-sizing: border-box; border: 1.5px solid var(--line-strong); border-radius: 5px; background: var(--white); color: var(--gold-500); }
+.od-task-check.is-done { border-color: var(--green-900); background: var(--green-900); }
+.od-task-check svg { stroke: currentColor; }
+.od-task-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.od-task-title { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.od-task-title.is-done { text-decoration: line-through; color: var(--gray-text); }
+.od-task-meta { font-size: 11.5px; color: var(--ink-muted); }
+.od-task-meta.is-late { color: var(--wine); font-weight: 600; }
+.od-notes { margin: 0; padding: 14px 16px; border-radius: var(--r-md); background: var(--paper-2); font-size: 13px; line-height: 1.6; color: var(--brown); white-space: pre-wrap; overflow-wrap: anywhere; }
+.od-notes-meta { font-size: 11.5px; color: var(--ink-muted); }
+.od-history { padding-top: 4px; }
+
+/* link do nome no cartão do funil */
+.kanban-card-link { color: inherit; text-decoration: none; }
+.kanban-card-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.metric:has(.metric-note) { flex-wrap: wrap; row-gap: 2px; }
+.metric-note { flex-basis: 100%; font-size: var(--fs-caption); color: var(--ink-muted); text-align: right; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 768px) {
+  /* o resumo vira coluna: o flex-basis de 100% da nota passaria a ser ALTURA e ela sobreporia o rótulo */
+  .metric:has(.metric-note) { flex-wrap: nowrap; row-gap: 0; }
+  .metric-note { flex: 0 0 auto; text-align: left; }
+}
+
+@media (max-width: 1180px) {
+  .od-hero { padding: 22px; }
+  .od-flow { flex-direction: column; align-items: stretch; }
+  .od-flow-moves { flex: none; }
+}
+
+@media (max-width: 768px) {
+  .od-hero { padding: 18px; gap: 18px; }
+  .od-hero-top { flex-direction: column; gap: 14px; }
+  .od-value { align-items: flex-start; }
+  .od-value-amount { font-size: 34px; }
+  .od-actions { justify-content: stretch; }
+  .od-actions .btn { flex: 1 1 auto; }
+  .od-flow-moves .btn { flex: 1 1 auto; }
+  .od-step-label { font-size: 11px; }
+}

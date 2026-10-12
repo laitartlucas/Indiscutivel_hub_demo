@@ -1,0 +1,46 @@
+/* ---------- Configurações: etapas do funil (kit A-Configuracoes) ---------- */
+
+.cfg { display: flex; flex-direction: column; gap: 20px; max-width: 980px; }
+.cfg-card { border-radius: var(--r-card-lg); background: var(--white); border: 1px solid var(--line); overflow: hidden; }
+.cfg-card-head { display: flex; flex-direction: column; gap: 4px; padding: 22px 26px 18px; }
+.cfg-card-title { margin: 0; font-family: var(--font-serif); font-weight: 500; font-size: 24px; line-height: 1.2; }
+.cfg-card-sub { margin: 0; font-size: 13px; color: var(--ink-muted); }
+.cfg-banner { padding: 0 26px 16px; }
+.cfg-banner:empty { display: none; }
+
+.cfg-cols, .cfg-row { display: grid; grid-template-columns: 14px minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.4fr); gap: 14px; align-items: center; padding-inline: 26px; }
+.cfg-cols { padding-block: 11px; background: var(--paper-2); font-size: 10.5px; letter-spacing: 0.14em; font-weight: 700; text-transform: uppercase; color: var(--ink-muted); }
+.cfg-stages { list-style: none; margin: 0; padding: 0; }
+.cfg-row { padding-block: 10px; border-top: 1px solid var(--line-soft); }
+.cfg-row .field { margin: 0; }
+.cfg-row .field-label { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.cfg-swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--green-300); }
+.cfg-swatch[data-stage='arrived'] { background: var(--green-100); box-shadow: inset 0 0 0 1px var(--green-300); }
+.cfg-swatch[data-stage='talking'] { background: var(--green-300); }
+.cfg-swatch[data-stage='proposal'] { background: var(--green-500); }
+.cfg-swatch[data-stage='won'] { background: var(--gold-500); }
+.cfg-swatch[data-stage='lost'] { background: var(--wine); }
+.cfg-prob { display: flex; align-items: flex-start; gap: 6px; }
+.cfg-prob .field { width: 84px; }
+.cfg-prob .field-input { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cfg-prob-unit { padding-top: 12px; font-size: 13px; color: var(--ink-muted); }
+.cfg-prob-fixed { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--ink-muted); }
+.cfg-prob-fixed strong { font-size: 15px; color: var(--ink); }
+.cfg-deals { font-size: 13px; color: var(--brown); font-variant-numeric: tabular-nums; }
+.cfg-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding: 18px 26px 22px; border-top: 1px solid var(--line-soft); }
+.cfg-info { display: grid; margin: 0; padding: 0 26px 22px; }
+.cfg-info-row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line-soft); font-size: 13.5px; }
+.cfg-info-row:first-child { border-top: 0; }
+.cfg-info dt { color: var(--ink-muted); }
+.cfg-info dd { margin: 0; font-weight: 700; text-align: right; }
+
+@media (max-width: 768px) {
+  .cfg-cols { display: none; }
+  .cfg-row { grid-template-columns: 14px minmax(0, 1fr); gap: 10px 12px; padding-inline: 18px; }
+  .cfg-row .cfg-prob, .cfg-row .cfg-prob-fixed, .cfg-row .cfg-deals { grid-column: 2; }
+  .cfg-card-head { padding: 18px 18px 14px; }
+  .cfg-banner { padding-inline: 18px; }
+  .cfg-actions { padding-inline: 18px; }
+  .cfg-actions .btn { flex: 1 1 auto; }
+  .cfg-info { padding-inline: 18px; }
+}

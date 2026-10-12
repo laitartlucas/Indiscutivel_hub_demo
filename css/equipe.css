@@ -1,0 +1,93 @@
+/* ---------- Equipe e Permissões (kit M-Usuarios e M-Permissoes) ---------- */
+
+/* ----- Lista da equipe ----- */
+.tm-person { min-height: var(--target-min); display: flex; align-items: center; gap: 12px; min-width: 0; }
+.tm-person-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tm-person-name { font-weight: 700; overflow-wrap: anywhere; }
+.tm-person-sub { font-size: var(--fs-caption); color: var(--ink-muted); overflow-wrap: anywhere; }
+.tm-avatar { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: var(--green-100); color: var(--green-900); font-family: var(--font-serif); font-size: 14px; }
+.tm-avatar.is-owner { background: var(--green-900); color: var(--gold-500); box-shadow: 0 0 0 2px var(--white), 0 0 0 3px var(--gold-500); }
+.tm-role { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: var(--r-sm); background: var(--paper); color: var(--brown); font-size: var(--fs-caption); font-weight: 700; }
+.tm-role.is-owner { background: var(--green-900); color: var(--gold-500); }
+.tm-status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.tm-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--neutral-ink); }
+.tm-status--good { color: var(--success-text); }
+.tm-status--good .tm-dot { background: var(--success); }
+.tm-status--warn { color: var(--gold-700t); }
+.tm-status--warn .tm-dot { background: var(--warn-dot); }
+.tm-status--bad { color: var(--wine); }
+.tm-status--bad .tm-dot { background: var(--wine); }
+.tm-status--neutral { color: var(--neutral-ink); }
+.tm-note, .pm-note { display: flex; align-items: flex-start; gap: 8px; margin: var(--space-4) 0 0; font-size: var(--fs-small); color: var(--ink-muted); }
+.tm-note svg, .pm-note svg { flex: none; margin-top: 2px; }
+
+/* ----- Diálogo "Acesso criado" (M-ConviteEnviado) ----- */
+.dialog-access { max-width: 520px; }
+.access-body { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; }
+.access-seal { position: relative; width: 88px; height: 88px; }
+.access-seal-ring { position: absolute; inset: 0; border-radius: 50%; border: 1px solid var(--gold-500); }
+.access-seal-core { position: absolute; inset: 6px; border-radius: 50%; background: var(--green-900); color: var(--gold-500); display: grid; place-items: center; box-shadow: 0 0 0 4px var(--offwhite), 0 0 0 5px var(--gold-500); }
+.access-title { margin: 4px 0 0; font-family: var(--font-serif); font-weight: 400; font-size: 32px; color: var(--green-900); }
+.access-text { margin: 0; line-height: 1.6; color: var(--brown); overflow-wrap: anywhere; }
+.access-card { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r-md); background: var(--white); border: 1px solid var(--line); text-align: left; }
+.access-card-avatar { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: var(--brown); color: var(--offwhite); font-family: var(--font-serif); font-size: 15px; }
+.access-card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.access-card-name { font-weight: 700; overflow-wrap: anywhere; }
+.access-card-sub { font-size: var(--fs-caption); color: var(--ink-muted); }
+.access-body .field { width: 100%; text-align: left; }
+.access-note { margin: 0; font-size: var(--fs-small); color: var(--ink-muted); }
+.access-actions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.access-close { width: 100%; }
+.dialog-access .copy-feedback { min-height: 1.4em; margin: 0; color: var(--good); font-size: var(--text-sm); font-weight: 600; }
+@media (max-width: 480px) {
+  .access-actions { grid-template-columns: minmax(0, 1fr); }
+  .access-title { font-size: 28px; }
+}
+
+/* ----- Diálogo "Criar papel": caixas de permissões ----- */
+.perm-fieldset { margin: var(--space-4) 0 0; padding: 0; border: 0; min-width: 0; }
+.perm-legend { padding: 0; margin-bottom: 6px; font-size: 10.5px; letter-spacing: 0.16em; font-weight: 700; color: var(--gold-text); }
+.perm-check { display: flex; align-items: flex-start; gap: 12px; min-height: var(--target-min); padding: 8px 0; cursor: pointer; }
+.perm-check .check-input { margin-top: 2px; }
+.perm-check span { display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-body); }
+.perm-check small { font-size: var(--fs-small); color: var(--ink-muted); }
+
+/* ----- Matriz de permissões ----- */
+.pm-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-card-lg); background: var(--white); }
+.pm-wrap:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pm-grid { min-width: min-content; }
+.pm-row { display: grid; grid-template-columns: minmax(240px, 2.4fr); grid-auto-flow: column; grid-auto-columns: minmax(124px, 1fr); align-items: stretch; border-top: 1px solid var(--line-soft); }
+.pm-row--head { background: var(--paper-2); border-top: 0; }
+.pm-row:hover:not(.pm-row--head) { background: #fbf8f1; }
+.pm-th { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 14px 8px; text-align: center; border-left: 1px solid var(--paper-3); }
+.pm-th--perm { align-items: flex-start; justify-content: flex-end; padding: 16px 22px; border-left: 0; font-size: 10.5px; letter-spacing: 0.14em; font-weight: 700; color: var(--ink-muted); }
+.pm-th-name { font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
+.pm-th-name--owner { color: var(--green-900); }
+.pm-th-sub { font-size: 11px; color: var(--ink-muted); }
+.pm-th-tag { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; color: var(--gold-700t); }
+.pm-th .menu { margin-top: 2px; }
+.pm-th .menu-trigger { width: 44px; height: 44px; }
+.pm-group-label { padding: 10px 22px; background: var(--offwhite); border-top: 1px solid var(--line-soft); font-size: 10.5px; letter-spacing: 0.16em; font-weight: 700; color: var(--gold-text); }
+.pm-perm { display: flex; flex-direction: column; gap: 2px; padding: 12px 22px; }
+.pm-perm-title { font-size: 13.5px; font-weight: 600; }
+.pm-perm-desc { font-size: var(--fs-caption); color: var(--ink-muted); }
+.pm-cell { display: flex; align-items: center; justify-content: center; border-left: 1px solid var(--paper-2); }
+/* O botão tem 44 x 44 px de área de toque; a caixa visível do kit tem 22 px. */
+.pm-check { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: var(--r-sm); }
+.pm-check:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; box-shadow: var(--focus-ring); }
+.pm-check:disabled { cursor: not-allowed; }
+.pm-box { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--line-strong); background: var(--white); color: transparent; transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease; }
+.pm-box.is-on { background: var(--green-900); border-color: var(--green-900); color: var(--gold-500); }
+.pm-box.is-locked.is-on { background: var(--gray-text); border-color: var(--gray-text); color: var(--white); }
+.pm-check:not(:disabled):active .pm-box { transform: scale(0.9); }
+@media (max-width: 768px) {
+  .pm-perm { padding: 12px 14px; }
+  .pm-th--perm { padding: 16px 14px; }
+  .pm-group-label { padding: 10px 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pm-box { transition: none; }
+}
+
+/* ----- Painel da equipe sem permissão de ver alunas ----- */
+.team-home-links { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-3); }
