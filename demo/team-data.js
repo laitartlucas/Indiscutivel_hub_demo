@@ -111,7 +111,7 @@ export const MENTORIA_POLICY = [
 
 /** Rotas da própria conta, abertas a qualquer pessoa logada (inclusive a equipe). */
 export const SELF_PATHS = [/^auth\//, /^account\//, /^notifications(\/|$)/, /^search$/];
-export const PUBLIC_PATHS = [/^invites\//, /^auth\/login$/, /^auth\/password-reset\//];
+export const PUBLIC_PATHS = [/^invites\//, /^auth\/login$/, /^auth\/two-factor$/, /^auth\/password-reset\//];
 
 /**
  * Decisão para uma requisição: { kind: 'public'|'self'|'owner'|'permission'|'student', key? }.
@@ -120,6 +120,8 @@ export const PUBLIC_PATHS = [/^invites\//, /^auth\/login$/, /^auth\/password-res
 export function policyFor(method, path) {
   if (PUBLIC_PATHS.some((p) => p.test(path))) return { kind: 'public' };
   if (/^team(\/|$)/.test(path)) return { kind: 'owner' };
+  // Redefinir a verificação em duas etapas de uma aluna: só a mentora proprietária (a equipe nunca).
+  if (method === 'POST' && re(`students/${SEG}/two-factor/reset`).test(path)) return { kind: 'owner' };
   const found = MENTORIA_POLICY.find(([m, pattern]) => m === method && pattern.test(path));
   if (found) return { kind: 'permission', key: found[2] };
   if (SELF_PATHS.some((p) => p.test(path))) return { kind: 'self' };

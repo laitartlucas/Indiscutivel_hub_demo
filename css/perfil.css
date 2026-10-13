@@ -121,3 +121,23 @@
   .page-header-actions:has(#profile-save) { flex-wrap: nowrap; width: 100%; }
   #profile-save, #profile-discard { flex: 1 1 0; }
 }
+
+/* ----- Verificação em duas etapas (assistente em diálogo, códigos de recuperação, linha do Perfil) ----- */
+.dialog-2fa { width: min(560px, calc(100vw - 2 * var(--space-4))); }
+.dialog .tf-step { margin: 0 0 var(--space-3); font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-muted); }
+.tf-list { margin: 0 0 var(--space-4); padding-left: 22px; display: grid; gap: 8px; font-size: 14px; line-height: 1.55; color: var(--ink); }
+.tf-keybox { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--paper-2); margin-bottom: var(--space-3); }
+.tf-key-label { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-muted); }
+.tf-key { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace; font-size: clamp(18px, 5.2vw, 24px); font-weight: 700; letter-spacing: 0.08em; line-height: 1.5; word-spacing: 0.35em; color: var(--green-900); overflow-wrap: anywhere; user-select: all; }
+.tf-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.tf-actions .btn { min-height: var(--target-min); }
+.tf-codes { list-style: none; margin: 0 0 var(--space-3); padding: 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--paper-2); }
+.tf-codes code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace; font-size: 15px; font-weight: 700; letter-spacing: 0.06em; color: var(--ink); user-select: all; }
+.dialog-2fa .copy-feedback { min-height: 1.4em; margin: 0 0 var(--space-3); color: var(--good); font-size: var(--text-sm); font-weight: 600; }
+.dialog-2fa .tf-keybox .copy-feedback { margin: 0; }
+.dialog-2fa [autocomplete='one-time-code'] { letter-spacing: 0.18em; font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 600; }
+.pf-2fa { display: flex; flex-direction: column; gap: 10px; }
+.pf-2fa-codes { padding-top: 0; }
+@media (max-width: 480px) {
+  .tf-codes { grid-template-columns: minmax(0, 1fr); }
+}

@@ -417,3 +417,17 @@ li[data-met='true'] .pw-mark::before { display: none; }
   .kanban-board-track { grid-auto-columns: 86%; }
   .kanban-column { scroll-snap-align: start; }
 }
+
+/* ----- Verificação em duas etapas: botões com cara de link nas telas de acesso ----- */
+button.auth-back--button,
+button.auth-link--button { appearance: none; background: transparent; border: 0; padding: 0; font: inherit; cursor: pointer; }
+button.auth-back--button { font-size: 13px; font-weight: 600; color: var(--brown); min-height: var(--target-min); }
+button.auth-link--button { font-size: 13.5px; font-weight: 600; color: var(--green-900); text-decoration: underline; text-decoration-color: var(--gold-500); text-underline-offset: 3px; min-height: var(--target-min); padding: 0 6px; }
+button.auth-back--button:focus-visible,
+button.auth-link--button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-sm); }
+.auth-form #login-code,
+.auth-form #login-recovery { letter-spacing: 0.18em; font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 600; }
+@media (max-width: 1024px) {
+  .auth-form #login-code,
+  .auth-form #login-recovery { font-size: 18px; }
+}

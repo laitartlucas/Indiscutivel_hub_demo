@@ -85,7 +85,7 @@ function formBody(invite) {
  * Tela pública `/convite/:token`. O token só existe aqui (vindo da rota) e nos corpos dos POST: nunca vai para o
  * título da página, para o texto da tela nem para o console. Ao ativar, a sessão abre e o roteador leva a "Acesso ativado".
  */
-export function renderActivate({ root, session, api, params }) {
+export function renderActivate({ root, session, api, navigate, params }) {
   const token = params.token;
   let disposed = false;
   let loadId = 0; // ignora a resposta de uma abertura antiga se "Tentar de novo" já iniciou outra
@@ -134,7 +134,9 @@ export function renderActivate({ root, session, api, params }) {
         setBanner(null);
         try {
           // Dá certo: a sessão abre e o roteador troca a tela por "Acesso ativado" (o link gasto não fica no histórico).
-          await session.activate(token, values.password);
+          const result = await session.activate(token, values.password);
+          // Conta com verificação em duas etapas: a senha foi definida, mas a sessão só abre pelo login (com o segundo passo).
+          if (result?.twoFactorRequired && !disposed) navigate('/entrar');
         } catch (error) {
           if (disposed) return;
           const orphan = form.applyServerErrors(error.errors);

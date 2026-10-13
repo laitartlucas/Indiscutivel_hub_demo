@@ -44,7 +44,7 @@ export function createMentoraDemo(d) {
     if (!last) return { count: null, updatedAt: null, deltaMonth: null };
     return { count: last.count, updatedAt: a.updatedAt, deltaMonth: deltaMonth(a.history, now.toISOString()) };
   };
-  const activeDetail = (u, now) => ({ ...activeOf(u, now), history: lastMonths(u.activeStudents?.history ?? [], now.toISOString()) });
+  const activeDetail = (u, now) => ({ ...activeOf(u, now), history: lastMonths(u.activeStudents?.history ?? [], now.toISOString()).map(({ month, count }) => ({ month, count })) });
 
   const mentora = () => db().users.find((u) => u.role === 'admin');
   const students = () => db().users.filter((u) => u.role === 'user');

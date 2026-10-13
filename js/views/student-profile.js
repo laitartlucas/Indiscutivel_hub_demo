@@ -79,13 +79,14 @@ function inviteItem(invite) {
   </li>`;
 }
 
-function renderAccess(student, invites) {
+function renderAccess(student, invites, twoFactorEnabled) {
   const list = invites.filter(isInvite);
   return html`<section class="dash-card" aria-labelledby="profile-access-title">
     <h2 id="profile-access-title">Acesso</h2>
     <dl class="profile-data">
       ${dataRow('Estado', badge(STATUS_LABELS[student.status] ?? student.status, statusTone(student.status)))}
       ${dataRow('Último acesso', student.lastLoginAt ? stamp(student.lastLoginAt) : 'Nunca acessou')}
+      ${typeof twoFactorEnabled === 'boolean' ? dataRow('Verificação em duas etapas', twoFactorEnabled ? 'Ativa' : 'Desativada') : ''}
     </dl>
     <h3 class="profile-subhead" id="profile-invites-title">Convites</h3>
     ${list.length === 0 ? html`<p class="muted">Nenhum convite gerado ainda.</p>` : html`<ul class="invite-list" aria-labelledby="profile-invites-title">${list.map(inviteItem)}</ul>`}
@@ -93,7 +94,7 @@ function renderAccess(student, invites) {
 }
 
 /** Botões do cabeçalho: só as ações válidas para o estado atual (o servidor continua sendo a autoridade). */
-function headerActions(student, invites, user) {
+function headerActions(student, invites, user, twoFactorEnabled) {
   const valid = new Set(availableActions(student));
   const hasPending = invites.some((invite) => invite?.status === 'pending');
   // A equipe só vê as ações que o papel permite (o servidor confere de novo em cada rota).
@@ -108,6 +109,8 @@ function headerActions(student, invites, user) {
     ['unblock', 'Desbloquear', 'ghost', manage && valid.has('unblock')],
     ['deactivate', 'Desativar conta', 'ghost', manage && valid.has('deactivate')],
     ['reactivate', 'Reativar conta', 'ghost', manage && valid.has('reactivate')],
+    // Só a mentora proprietária (a equipe nunca) e só se a aluna usa a verificação em duas etapas.
+    ['reset-2fa', 'Redefinir verificação em duas etapas', 'ghost', user?.role === 'admin' && twoFactorEnabled === true],
   ];
   return html`${items.filter((item) => item[3]).map(([action, label, variant]) => button({ label, variant, extra: { 'data-action': action } }))}`;
 }
@@ -141,7 +144,7 @@ export function renderStudentProfile({ root, session, api, navigate, params }) {
   function paintHeader(data) {
     heading.textContent = data ? data.student.name : 'Aluna';
     mount(subtitleEl, data ? badge(STATUS_LABELS[data.student.status] ?? data.student.status, statusTone(data.student.status)) : html``);
-    mount(actionsEl, data ? headerActions(data.student, data.invites, session.state.user) : html``);
+    mount(actionsEl, data ? headerActions(data.student, data.invites, session.state.user, data.twoFactorEnabled) : html``);
   }
 
   /** `silent`: recarga depois de uma ação, sem trocar a tela por um esqueleto (o foco e a rolagem ficam onde estão). */
@@ -169,7 +172,7 @@ export function renderStudentProfile({ root, session, api, navigate, params }) {
     profile = data;
     paintHeader(data);
     if (data) {
-      mount(region, html`<div class="dash dash-split">${renderData(data.student)}${renderAccess(data.student, data.invites)}</div>`);
+      mount(region, html`<div class="dash dash-split">${renderData(data.student)}${renderAccess(data.student, data.invites, data.twoFactorEnabled)}</div>`);
       // As seções de mentoria carregam sozinhas, uma vez por visita (uma recarga depois de uma ação não as refaz).
       if (!growth) {
         growth = mountStudentGrowth({ host: growthHost, api, student: data.student, can: (key) => can(session.state.user, key) });
@@ -314,6 +317,19 @@ export function renderStudentProfile({ root, session, api, navigate, params }) {
       await transition('deactivate', 'Conta desativada.');
     },
     reactivate: () => transition('reactivate', 'Conta reativada.'),
+    'reset-2fa': async () => {
+      const name = profile.student.name;
+      const confirmed = await confirmDialog({
+        title: `Desativar a verificação em duas etapas de ${name}?`,
+        message: `Faça isso só se ela perdeu o celular e os códigos de recuperação. ${name} será desconectada na hora, receberá um aviso e poderá ativar a verificação de novo no Perfil dela.`,
+        confirmLabel: 'Desativar verificação',
+        cancelLabel: 'Voltar',
+        tone: 'danger',
+      });
+      if (!confirmed || disposed) return false;
+      await mutate(() => api.post(`${base}/two-factor/reset`, {}), 'Verificação em duas etapas desativada.');
+      await load({ silent: true });
+    },
   };
 
   actionsEl.addEventListener('click', async (event) => {

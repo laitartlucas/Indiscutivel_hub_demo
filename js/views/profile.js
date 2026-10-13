@@ -4,11 +4,13 @@ import { resizeAvatar } from '../lib/avatar.js';
 import { mount } from '../lib/dom.js';
 import { html } from '../lib/html.js';
 import { HOME_OPTIONS, TIMEZONE_OPTIONS, lastSeenLabel, memberSince, notificationItemsFor, passwordAgeLabel, sessionTitle } from '../lib/profile.js';
+import { recoveryCountLabel } from '../lib/two-factor.js';
 import { roleLabel } from '../lib/students.js';
 import { icon } from '../ih-icons.js';
 import { renderShell } from '../shell.js';
 import { alert, avatarContent, button, field, selectField, skeleton } from '../ui/components.js';
 import { confirmDialog } from '../ui/dialog.js';
+import { openTwoFactorDisable, openTwoFactorRegenerate, openTwoFactorSetup } from '../ui/two-factor-dialog.js';
 import { attachForm } from '../ui/form.js';
 import { toast } from '../ui/toast.js';
 import { nameError, phoneError } from './student-forms.js';
@@ -77,17 +79,32 @@ function personalCard(profile) {
   </section>`;
 }
 
-function securityCard(profile, sessions, now) {
+/** Estado da verificação em duas etapas: carregando, com erro (tentar de novo), desativada ou ativa (com a contagem de códigos). */
+function twoFactorBlock(state, role) {
+  if (state === 'error') {
+    return html`<div class="stack">${alert({ tone: 'danger', message: 'Não foi possível carregar a verificação em duas etapas.' })}<div class="row">${button({ label: 'Tentar de novo', variant: 'ghost', small: true, extra: { 'data-action': 'tf-retry' } })}</div></div>`;
+  }
+  if (!state) return skeleton(1);
+  const recommend = role !== 'user' && !state.enabled;
+  return html`${recommend ? html`<div id="pf-2fa-recommend">${alert({ tone: 'warn', title: 'Recomendamos ativar', message: 'Esta conta administra os dados da sua mentoria. Com a verificação em duas etapas, só a senha não basta para entrar.' })}</div>` : ''}
+    <div class="pf-row pf-row-plain">
+      <div class="pf-row-text"><span class="pf-row-title" id="pf-2fa-title">Verificação em duas etapas</span><span class="pf-row-sub" id="pf-2fa-sub">${state.enabled ? 'Ativa: além da senha, pedimos o código do aplicativo autenticador.' : 'Código por aplicativo autenticador. Desativada.'}</span></div>
+      ${switchButton({ id: 'pf-2fa-switch', label: 'Verificação em duas etapas', checked: state.enabled, extra: html` aria-describedby="pf-2fa-sub"` })}
+    </div>
+    ${state.enabled ? html`<div class="pf-row pf-row-plain pf-2fa-codes">
+      <div class="pf-row-text"><span class="pf-row-sub" id="pf-2fa-left" role="status">${recoveryCountLabel(state.recoveryCodesLeft)}</span></div>
+      ${button({ label: 'Gerar novos códigos', variant: 'ghost', small: true, id: 'pf-2fa-regen' })}
+    </div>` : ''}`;
+}
+
+function securityCard(profile, sessions, now, twoFactor) {
   return html`<section class="pf-card" id="seguranca" aria-labelledby="pf-security-title">
     <h2 id="pf-security-title" tabindex="-1">Segurança</h2>
     <div class="pf-row">
       <div class="pf-row-text"><span class="pf-row-title">Senha</span><span class="pf-row-sub" id="pf-password-age">${passwordAgeLabel(profile.passwordChangedAt, now)}</span></div>
       <a class="btn btn-ghost btn-sm" href="#/alterar-senha">Alterar senha</a>
     </div>
-    <div class="pf-row pf-row-plain">
-      <div class="pf-row-text"><span class="pf-row-title">Verificação em duas etapas</span><span class="pf-row-sub">Código por aplicativo autenticador</span></div>
-      <span class="pf-soon">Em breve</span>
-    </div>
+    <div id="pf-2fa" class="pf-2fa">${twoFactorBlock(twoFactor, profile.role)}</div>
     <h3 class="pf-subhead">Sessões ativas</h3>
     <div id="pf-sessions">${sessionsBlock(sessions, now)}</div>
   </section>`;
@@ -150,8 +167,10 @@ export function profilePayload(values) {
 export function renderProfile({ root, session, api, navigate }) {
   let disposed = false;
   let seq = 0;
+  let twoFactorSeq = 0;
   let profile = null;
   let sessions = null;
+  let twoFactor = null;
   let formApi = null;
 
   const disposeShell = renderShell({
@@ -277,6 +296,59 @@ export function renderProfile({ root, session, api, navigate }) {
     await loadSessions();
   }
 
+  // ---------- verificação em duas etapas ----------
+  function paintTwoFactor() {
+    const box = region.querySelector('#pf-2fa');
+    if (box) mount(box, twoFactorBlock(twoFactor, profile.role));
+  }
+
+  async function loadTwoFactor({ focus = null } = {}) {
+    const mine = ++twoFactorSeq;
+    if (focus === null) {
+      twoFactor = null;
+      paintTwoFactor();
+    }
+    let next;
+    try {
+      const result = await api.get('/api/v1/account/two-factor');
+      next = typeof result?.enabled === 'boolean' && Number.isInteger(result.recoveryCodesLeft) ? result : 'error';
+    } catch {
+      next = 'error';
+    }
+    if (disposed || mine !== twoFactorSeq) return;
+    twoFactor = next;
+    if (next !== 'error') session.setTwoFactorEnabled(next.enabled);
+    paintTwoFactor();
+    if (focus) region.querySelector(focus)?.focus();
+  }
+
+  async function toggleTwoFactor() {
+    const sw = region.querySelector('#pf-2fa-switch');
+    if (!twoFactor || twoFactor === 'error' || !sw) return;
+    sw.disabled = true;
+    let changed = false;
+    try {
+      changed = twoFactor.enabled ? await openTwoFactorDisable({ api, hint: twoFactor.demoHint }) : await openTwoFactorSetup({ api, email: profile.email });
+    } finally {
+      if (!disposed) sw.disabled = false;
+    }
+    if (disposed) return;
+    if (changed) {
+      // O servidor encerrou as outras sessões ao ativar: a lista de sessões muda junto.
+      await loadTwoFactor({ focus: '#pf-2fa-switch' });
+      loadSessions();
+    } else {
+      sw.focus();
+    }
+  }
+
+  async function regenerateCodes() {
+    const changed = await openTwoFactorRegenerate({ api, email: profile.email, hint: twoFactor.demoHint });
+    if (disposed) return;
+    if (changed) await loadTwoFactor({ focus: '#pf-2fa-regen' });
+    else region.querySelector('#pf-2fa-regen')?.focus();
+  }
+
   // ---------- preferências e notificações (gravam na hora; voltam ao valor anterior se falhar) ----------
   async function savePrefs(patch, revert) {
     try {
@@ -373,7 +445,7 @@ export function renderProfile({ root, session, api, navigate }) {
         ${hero(profile, profile.avatarUrl)}
         <div class="pf-grid">
           ${personalCard(profile)}
-          ${securityCard(profile, sessions, new Date())}
+          ${securityCard(profile, sessions, new Date(), twoFactor)}
           ${notificationsCard(prefs, role)}
           ${preferencesCard(prefs, role)}
         </div>
@@ -420,11 +492,15 @@ export function renderProfile({ root, session, api, navigate }) {
     }
     showPage();
     loadSessions();
+    loadTwoFactor();
   }
 
   region.addEventListener('click', (event) => {
     if (event.target.closest('[data-action="retry"]')) load();
     else if (event.target.closest('[data-action="sessions-retry"]')) loadSessions();
+    else if (event.target.closest('[data-action="tf-retry"]')) loadTwoFactor();
+    else if (event.target.closest('#pf-2fa-switch')) toggleTwoFactor();
+    else if (event.target.closest('#pf-2fa-regen')) regenerateCodes();
     else if (event.target.closest('#pf-photo-btn')) region.querySelector('#pf-photo-input').click();
     else if (event.target.closest('#pf-photo-remove')) removePhoto();
     else if (event.target.closest('#pf-revoke-others')) revokeOthers();

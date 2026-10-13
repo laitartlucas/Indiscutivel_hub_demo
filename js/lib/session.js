@@ -77,18 +77,49 @@ export function createSession(api, { beforeReady = null } = {}) {
         } else throw error;
       }
     },
+    /**
+     * Devolve `{ twoFactor: { challenge } }` quando a conta usa a verificação em duas etapas: a senha certa NÃO abre sessão,
+     * o estado continua anônimo e a tela pede o segundo passo (verifyTwoFactor). Sem 2FA, autentica e devolve `{}`.
+     */
     async login(email, password) {
       const mine = begin();
-      const user = await withPermissions(readUser(await api.post('/api/v1/auth/login', { email, password }, { allow401: true })));
+      const data = await api.post('/api/v1/auth/login', { email, password }, { allow401: true });
+      if (data?.twoFactorRequired === true) {
+        if (typeof data.challenge !== 'string' || data.challenge.length < 20) {
+          throw new ApiError({ status: 502, code: 'invalid_response', detail: 'Resposta inesperada do servidor.' });
+        }
+        // `demoHint` só existe na versão de demonstração (o servidor real nunca o envia).
+        return { twoFactor: { challenge: data.challenge, hint: typeof data.demoHint === 'string' ? data.demoHint : null } };
+      }
+      const user = await withPermissions(readUser(data));
       if (mine === generation) await prepare(user);
       if (mine === generation) authenticated(user);
+      return {};
+    },
+    /** Segundo passo do login: `factor` é `{ code }` (aplicativo) ou `{ recoveryCode }`. O servidor abre a sessão (cookie). */
+    async verifyTwoFactor(challenge, factor) {
+      const mine = begin();
+      const user = await withPermissions(readUser(await api.post('/api/v1/auth/two-factor', { challenge, ...factor }, { allow401: true })));
+      if (mine === generation) await prepare(user);
+      if (mine === generation) authenticated(user);
+    },
+    /** Guarda no usuário da sessão se o 2FA está ativo, SEM redesenhar a tela (o Perfil já mostra o estado novo). */
+    setTwoFactorEnabled(enabled) {
+      if (state.status === 'authenticated' && state.user) state = { ...state, user: { ...state.user, twoFactorEnabled: Boolean(enabled) } };
     },
     /** Ativa a conta pelo convite: o servidor abre a sessão (cookie) e devolve o usuário; só então o estado muda. */
     async activate(token, password) {
       const mine = begin();
-      const user = await withPermissions(readUser(await api.post('/api/v1/invites/accept', { token, password }, { allow401: true })));
+      const data = await api.post('/api/v1/invites/accept', { token, password }, { allow401: true });
+      // Conta com verificação em duas etapas: a senha foi definida, mas não há sessão. Segue pelo login (que pede o segundo passo).
+      if (data?.twoFactorRequired === true) {
+        if (mine === generation) anonymous('password_set');
+        return { twoFactorRequired: true };
+      }
+      const user = await withPermissions(readUser(data));
       // `justActivated` leva a aluna do link do convite à tela "Acesso ativado" (ver router-core). Some na próxima mudança de sessão.
       if (mine === generation) set({ status: 'authenticated', user, reason: null, justActivated: true });
+      return {};
     },
     /** Encerra o estado "acabou de ativar" sem avisar a tela (quem chama já está saindo dela). */
     clearActivation() {

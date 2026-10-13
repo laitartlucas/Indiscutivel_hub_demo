@@ -18,6 +18,12 @@ const API_PREFIX = '/api/v1/';
 const DAY = 86_400_000;
 const INVITE_TTL_MS = 7 * DAY;
 
+// Verificação em duas etapas na demonstração: não existe segredo nem aplicativo; o código do aplicativo é sempre 123456.
+const TWO_FACTOR_CODE = '123456';
+const TWO_FACTOR_HINT = 'Demonstração: use 123456';
+const TWO_FACTOR_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
+const TWO_FACTOR_RECOVERY = Array.from({ length: 10 }, (_, i) => `DEMA${'ABCDEFGHJK'[i]}-${String((i % 8) + 2).repeat(5)}`);
+
 const STAGES = ['arrived', 'talking', 'proposal', 'won', 'lost'];
 const TEMPERATURES = ['cold', 'warm', 'hot'];
 const SOURCE_KEY = /^[a-z][a-z0-9_]{0,39}$/;
@@ -442,7 +448,7 @@ export function createDemoApi(options = {}) {
     return 'no_invite';
   }
 
-  const sessionUser = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, mustChangePassword: false });
+  const sessionUser = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, mustChangePassword: false, twoFactorEnabled: Boolean(u.twoFactor?.enabled) });
 
   function studentDto(u) {
     return {
@@ -507,9 +513,156 @@ export function createDemoApi(options = {}) {
     const passwordOk = Boolean(u && u.password !== null && u.password === b.password);
     if (!u || !passwordOk || !u.active) throw Errors.invalidCredentials();
     if (u.manuallyBlocked) throw Errors.accountBlocked();
+    // Conta com verificação em duas etapas: a senha certa NÃO abre sessão; devolve só o desafio (como o servidor).
+    if (u.twoFactor?.enabled) {
+      const challenge = `demo-${newId()}-${newId()}`;
+      challenges.set(challenge, { userId: u.id, attempts: 0, expiresAt: clock().getTime() + 5 * 60_000 });
+      return { status: 200, body: { twoFactorRequired: true, challenge, demoHint: TWO_FACTOR_HINT } };
+    }
     u.lastLoginAt = stamp();
     saveSession({ userId: u.id, sessionId: newId(), startedAt: u.lastLoginAt });
     return { status: 200, body: { user: sessionUser(u) } };
+  }
+
+  // ---- verificação em duas etapas (demonstração: o código do aplicativo é SEMPRE 123456; não há segredo de verdade)
+
+  const challenges = new Map(); // desafios do login, só em memória (somem ao recarregar), com 5 tentativas e 5 minutos
+  const twoFactorOf = (u) => (u.twoFactor ??= { enabled: false, pending: false, recovery: [] });
+  const recoveryLeft = (u) => (u.twoFactor?.enabled ? u.twoFactor.recovery.filter((c) => !c.used).length : 0);
+  const freshRecovery = () => TWO_FACTOR_RECOVERY.map((code) => ({ code, used: false }));
+  const digitsOf = (value) => (typeof value === 'string' ? value.replace(/[\s-]+/g, '') : '');
+  const goodTotp = (value) => /^\d{6}$/.test(digitsOf(value));
+  const goodRecovery = (value) => /^[A-HJ-NP-Z2-9]{10}$/.test(digitsOf(value).toUpperCase());
+  const recoveryMatch = (u, value) => u.twoFactor.recovery.find((c) => !c.used && c.code.replace('-', '') === digitsOf(value).toUpperCase()) ?? null;
+  const wrongCode = (field = 'code') =>
+    Errors.validation([{ field, message: field === 'code' ? 'Código incorreto ou vencido. Confira se o horário do celular está automático.' : 'Código de recuperação incorreto ou já usado.' }]);
+
+  function checkPassword(b, issues) {
+    if (typeof b.password !== 'string' || b.password === '') issues.add('password', 'Informe a sua senha.');
+    else if (b.password.length > 128) issues.add('password', 'A senha pode ter no máximo 128 caracteres.');
+    return issues;
+  }
+
+  function twoFactorStatus() {
+    const u = requireAuth();
+    return { status: 200, body: { enabled: Boolean(u.twoFactor?.enabled), recoveryCodesLeft: recoveryLeft(u), demoHint: TWO_FACTOR_HINT } };
+  }
+
+  function twoFactorSetup(body) {
+    const u = requireAuth();
+    const b = requireBody(body);
+    const issues = createIssues();
+    onlyKeys(b, ['password'], issues);
+    checkPassword(b, issues).throwIfAny();
+    if (u.password !== b.password) throw Errors.validation([{ field: 'password', message: 'Senha incorreta.' }]);
+    if (u.twoFactor?.enabled) throw new HttpError(409, 'two_factor_already_enabled', 'A verificação em duas etapas já está ativa nesta conta.');
+    twoFactorOf(u).pending = true;
+    const label = `Indiscut%C3%ADvel%20Hub:${encodeURIComponent(u.email)}`;
+    return {
+      status: 200,
+      body: {
+        secret: TWO_FACTOR_SECRET,
+        otpauthUri: `otpauth://totp/${label}?secret=${TWO_FACTOR_SECRET}&issuer=Indiscut%C3%ADvel%20Hub&algorithm=SHA1&digits=6&period=30`,
+        expiresInSeconds: 1800,
+        demoHint: TWO_FACTOR_HINT,
+      },
+    };
+  }
+
+  function twoFactorEnable(body) {
+    const u = requireAuth();
+    const b = requireBody(body);
+    const issues = createIssues();
+    onlyKeys(b, ['code'], issues);
+    if (!goodTotp(b.code)) issues.add('code', 'Digite os 6 números do aplicativo.');
+    issues.throwIfAny();
+    if (u.twoFactor?.enabled) throw new HttpError(409, 'two_factor_already_enabled', 'A verificação em duas etapas já está ativa nesta conta.');
+    if (!u.twoFactor?.pending) throw new HttpError(409, 'two_factor_not_started', 'Comece a ativação pelo primeiro passo.');
+    if (digitsOf(b.code) !== TWO_FACTOR_CODE) throw wrongCode();
+    Object.assign(twoFactorOf(u), { enabled: true, pending: false, recovery: freshRecovery() });
+    return { status: 200, body: { recoveryCodes: [...TWO_FACTOR_RECOVERY] } };
+  }
+
+  function twoFactorDisable(body) {
+    const u = requireAuth();
+    const b = requireBody(body);
+    const issues = createIssues();
+    onlyKeys(b, ['password', 'code', 'recoveryCode'], issues);
+    checkPassword(b, issues);
+    if ((b.code === undefined) === (b.recoveryCode === undefined)) issues.add('code', 'Informe o código do aplicativo ou um código de recuperação.');
+    else if (b.code !== undefined && !goodTotp(b.code)) issues.add('code', 'Digite os 6 números do aplicativo.');
+    else if (b.recoveryCode !== undefined && !goodRecovery(b.recoveryCode)) issues.add('recoveryCode', 'Digite o código de recuperação completo (10 letras e números).');
+    issues.throwIfAny();
+    if (u.password !== b.password) throw Errors.validation([{ field: 'password', message: 'Senha incorreta.' }]);
+    if (!u.twoFactor?.enabled) throw new HttpError(409, 'two_factor_not_enabled', 'A verificação em duas etapas não está ativa nesta conta.');
+    const ok = b.code !== undefined ? digitsOf(b.code) === TWO_FACTOR_CODE : recoveryMatch(u, b.recoveryCode) !== null;
+    if (!ok) throw wrongCode(b.code !== undefined ? 'code' : 'recoveryCode');
+    delete u.twoFactor;
+    return { status: 204 };
+  }
+
+  function twoFactorRegenerate(body) {
+    const u = requireAuth();
+    const b = requireBody(body);
+    const issues = createIssues();
+    onlyKeys(b, ['password', 'code'], issues);
+    checkPassword(b, issues);
+    if (!goodTotp(b.code)) issues.add('code', 'Digite os 6 números do aplicativo.');
+    issues.throwIfAny();
+    if (u.password !== b.password) throw Errors.validation([{ field: 'password', message: 'Senha incorreta.' }]);
+    if (!u.twoFactor?.enabled) throw new HttpError(409, 'two_factor_not_enabled', 'A verificação em duas etapas não está ativa nesta conta.');
+    if (digitsOf(b.code) !== TWO_FACTOR_CODE) throw wrongCode();
+    u.twoFactor.recovery = freshRecovery();
+    return { status: 200, body: { recoveryCodes: [...TWO_FACTOR_RECOVERY] } };
+  }
+
+  /** Segundo passo do login (público): o desafio é de uso único, vale 5 minutos e aceita 5 tentativas. */
+  function twoFactorLogin(body) {
+    const b = requireBody(body);
+    const issues = createIssues();
+    onlyKeys(b, ['challenge', 'code', 'recoveryCode'], issues);
+    if (typeof b.challenge !== 'string' || b.challenge.length < 20 || b.challenge.length > 100) issues.add('challenge', 'Verificação inválida.');
+    if ((b.code === undefined) === (b.recoveryCode === undefined)) issues.add('code', 'Informe o código.');
+    else if (b.code !== undefined && !goodTotp(b.code)) issues.add('code', 'Digite os 6 números do aplicativo.');
+    else if (b.recoveryCode !== undefined && !goodRecovery(b.recoveryCode)) issues.add('recoveryCode', 'Digite o código de recuperação completo (10 letras e números).');
+    issues.throwIfAny();
+    const expired = () => new HttpError(401, 'two_factor_expired', 'A verificação expirou. Entre de novo com o seu e-mail e a sua senha.');
+    const entry = challenges.get(b.challenge);
+    if (!entry || entry.expiresAt <= clock().getTime() || entry.attempts >= 5) throw expired();
+    entry.attempts += 1;
+    const u = findUser(entry.userId);
+    if (!u || !u.active || u.manuallyBlocked || !u.twoFactor?.enabled) throw expired();
+    const recoveryHit = b.recoveryCode !== undefined ? recoveryMatch(u, b.recoveryCode) : null;
+    if (b.code !== undefined ? digitsOf(b.code) !== TWO_FACTOR_CODE : !recoveryHit) {
+      const left = 5 - entry.attempts;
+      if (left <= 0) {
+        challenges.delete(b.challenge);
+        throw expired();
+      }
+      const field = b.code !== undefined ? 'code' : 'recoveryCode';
+      const message = `${field === 'code' ? 'Código incorreto' : 'Código de recuperação incorreto'}. ${left === 1 ? 'Resta 1 tentativa' : `Restam ${left} tentativas`}.`;
+      throw new HttpError(401, 'invalid_two_factor_code', message, [{ field, message }]);
+    }
+    challenges.delete(b.challenge);
+    if (recoveryHit) recoveryHit.used = true;
+    u.lastLoginAt = stamp();
+    saveSession({ userId: u.id, sessionId: newId(), startedAt: u.lastLoginAt });
+    return { status: 200, body: { user: sessionUser(u) } };
+  }
+
+  /** A mentora proprietária desativa o 2FA de uma aluna dela (perdeu o aparelho e os códigos). */
+  function twoFactorReset(id, body) {
+    requireAuth('admin');
+    const issues = createIssues();
+    onlyKeys(requireBody(body ?? {}), [], issues);
+    issues.throwIfAny();
+    const student = UUID.test(String(id)) ? db.users.find((x) => x.id === id && x.role === 'user') : null;
+    if (!student) throw Errors.notFound('Aluna não encontrada.');
+    if (!student.twoFactor?.enabled) throw new HttpError(409, 'two_factor_not_enabled', 'Esta aluna não usa a verificação em duas etapas.');
+    delete student.twoFactor;
+    student.twoFactorResetAt = stamp();
+    if (session?.userId === student.id) saveSession(null);
+    return { status: 204 };
   }
 
   function changePassword(body) {
@@ -2220,7 +2373,7 @@ export function createDemoApi(options = {}) {
     requireAuth('admin');
     const row = findStudent(id);
     const invites = invitesOf(row.id).sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
-    return { status: 200, body: { student: studentDto(row), invites: invites.map(inviteView) } };
+    return { status: 200, body: { student: studentDto(row), invites: invites.map(inviteView), twoFactorEnabled: Boolean(row.twoFactor?.enabled) } };
   }
 
   function patchStudent(id, body) {
@@ -2334,6 +2487,11 @@ export function createDemoApi(options = {}) {
     user.lastLoginAt = at;
     invite.status = 'accepted';
     invite.acceptedAt = at;
+    // Conta com verificação em duas etapas: define a senha, mas NÃO abre sessão (entra pelo login, que pede o segundo passo).
+    if (user.twoFactor?.enabled) {
+      saveSession(null);
+      return { status: 200, body: { twoFactorRequired: true } };
+    }
     saveSession({ userId: user.id, sessionId: newId(), startedAt: at });
     return { status: 200, body: { user: sessionUser(user) } };
   }
@@ -2929,11 +3087,21 @@ export function createDemoApi(options = {}) {
       if (u.role === 'user' && awardXp(u, 'daily_access', `daily:${xpDay(clock().toISOString())}`) > 0) persist();
       return { status: 200, body: { user: sessionUser(u) } };
     }],
+    ['POST', /^auth\/two-factor$/, (_m, _q, body) => twoFactorLogin(body)],
     ['POST', /^auth\/password$/, (_m, _q, body) => changePassword(body)],
     ['POST', /^auth\/password-reset\/request$/, (_m, _q, body) => requestReset(body)],
     ['POST', /^auth\/password-reset\/lookup$/, (_m, _q, body) => lookupReset(body)],
     ['POST', /^auth\/password-reset\/confirm$/, (_m, _q, body) => confirmReset(body)],
 
+    ['GET', /^account\/two-factor$/, (_m, q) => {
+      readQuery(q, {}, {});
+      return twoFactorStatus();
+    }],
+    ['POST', /^account\/two-factor\/setup$/, (_m, _q, body) => twoFactorSetup(body)],
+    ['POST', /^account\/two-factor\/enable$/, (_m, _q, body) => twoFactorEnable(body)],
+    ['POST', /^account\/two-factor\/disable$/, (_m, _q, body) => twoFactorDisable(body)],
+    ['POST', /^account\/two-factor\/recovery-codes$/, (_m, _q, body) => twoFactorRegenerate(body)],
+    ['POST', new RegExp(`^students/${SEG}/two-factor/reset$`), (m, _q, body) => twoFactorReset(m[1], body)],
     ['GET', /^account\/security-notice$/, (_m, q) => {
       const u = requireAuth();
       readQuery(q, {}, {});
