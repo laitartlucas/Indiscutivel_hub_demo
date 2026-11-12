@@ -43,7 +43,7 @@ function readAsDataUrl(file) {
   });
 }
 
-async function decode(file) {
+export async function decodeImage(file) {
   if (typeof createImageBitmap === 'function') {
     try {
       return await createImageBitmap(file);
@@ -68,7 +68,7 @@ export async function resizeAvatar(file) {
   if (invalid) return { error: invalid };
   let image;
   try {
-    image = await decode(file);
+    image = await decodeImage(file);
   } catch {
     return { error: UNREADABLE };
   }

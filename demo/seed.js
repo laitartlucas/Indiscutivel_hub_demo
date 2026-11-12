@@ -1,6 +1,7 @@
 import { buildFinanceSeed } from './seed-finance.js';
 import { buildGrowthSeed } from './seed-growth.js';
 import { buildMarketingSeed } from './seed-marketing.js';
+import { buildJourneySeed } from './seed-journey.js';
 import { weekBounds } from './mentora-data.js';
 import { SYSTEM_ROLES } from './team-data.js';
 import { DEFAULT_FUNNELS, defaultFunnelRows } from './funnels-data.js';
@@ -13,7 +14,7 @@ export const DEMO_PASSWORD = 'Demo-1234';
 export const MENTORA_EMAIL = 'mentora@demo.com';
 export const STUDENT_EMAIL = 'aluna@demo.com';
 export const ASSISTANT_EMAIL = 'assistente@demo.com';
-export const SCHEMA_VERSION = 18;
+export const SCHEMA_VERSION = 19;
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -680,6 +681,8 @@ export function buildSeed(now) {
   const finance = buildFinanceSeed({ now, uid, eid, did, pid });
   // Marketing: campanhas, investimentos, Instagram e a campanha dos contatos e oportunidades que já existem.
   const marketing = buildMarketingSeed({ now, uid, people, deals, did });
+  // Jornada e check-ins: fases com histórico, check-ins dos desafios (com e sem feedback) e uma foto pequena.
+  const journey = buildJourneySeed({ now, users, challenges: growth.challenges, enrollments: growth.challengeEnrollments });
 
   // Ranking "Evolução da comunidade": 9 alunas ativas (5 da Turma Aurora, 4 da Horizonte) já optaram por participar, com XP do mês variado e
   // níveis diferentes. A aluna demo NÃO participa até ligar a opção (padrão desligado, como no sistema). O XP do mês fica entre o
@@ -840,5 +843,5 @@ export function buildSeed(now) {
     { userId: uid(91), roleId: roleReadonly },
   ];
 
-  return { schema: SCHEMA_VERSION, seededAt: now.toISOString(), users, invites, notifications, products, people, companies, funnels: funnelRows, funnelStages: stageRows, deals, dealHistory, tasks, activities, xpEvents, goals, preferences, otherSessions, leadSources: {}, mentoria, mentoriaNotes, mentoringSessions, followupPlans, mentoriaCheckins, teamRoles, teamMembers, ...finance, ...marketing, ...growth };
+  return { schema: SCHEMA_VERSION, seededAt: now.toISOString(), users, invites, notifications, products, people, companies, funnels: funnelRows, funnelStages: stageRows, deals, dealHistory, tasks, activities, xpEvents, goals, preferences, otherSessions, leadSources: {}, mentoria, mentoriaNotes, mentoringSessions, followupPlans, mentoriaCheckins, teamRoles, teamMembers, ...finance, ...marketing, ...growth, ...journey };
 }

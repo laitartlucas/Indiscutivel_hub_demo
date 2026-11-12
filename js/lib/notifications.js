@@ -23,6 +23,9 @@ export const KIND_META = {
   challenge_published: { icon: 'desafios', tone: 'green' },
   mentoring_session_scheduled: { icon: 'calendar', tone: 'green' },
   two_factor_reset: { icon: 'lock', tone: 'wine' },
+  phase_changed: { icon: 'progresso', tone: 'gold' },
+  checkin_feedback: { icon: 'chat', tone: 'green' },
+  checkin_received: { icon: 'desafios', tone: 'sage' },
 };
 const FALLBACK_META = { icon: 'bell', tone: 'paper' };
 export const kindMeta = (kind) => (Object.hasOwn(KIND_META, kind) ? KIND_META[kind] : FALLBACK_META);

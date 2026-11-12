@@ -9,8 +9,12 @@ import { renderShell } from '../shell.js';
 import { alert, button, emptyState, skeleton } from '../ui/components.js';
 import { confirmDialog } from '../ui/dialog.js';
 import { toast } from '../ui/toast.js';
+import { mountChallengeCheckins } from './challenge-checkins.js';
 
-/** Detalhe do desafio (aluna): ações, participar/sair e marcar as ações manuais. As automáticas se calculam sozinhas. */
+/**
+ * Detalhe do desafio (aluna): ações, participar/sair e marcar as ações manuais. As automáticas se calculam sozinhas.
+ * Abaixo, os Check-ins diários (views/challenge-checkins.js), num bloco próprio que sobrevive aos redesenhos do resumo.
+ */
 
 function notFound() {
   return emptyState({
@@ -86,9 +90,20 @@ export function renderChallengeDetail({ root, session, api, navigate, params }) 
     active: 'challenges',
     heading: 'Desafio',
     eyebrow: html`Crescimento · <a class="back-link" href="#/desafios">← Desafios</a>`,
-    content: html`<div class="growth" id="chal-detail" aria-busy="true">${skeleton(4)}</div>`,
+    content: html`<div class="growth"><div class="growth" id="chal-detail" aria-busy="true">${skeleton(4)}</div><div id="chal-checkins"></div></div>`,
   });
   const body = root.querySelector('#chal-detail');
+  const checkinsHost = root.querySelector('#chal-checkins');
+  let checkins = null; // { key, dispose }
+
+  /** Monta (ou refaz) os Check-ins quando a inscrição ou a fase do desafio mudam; sem inscrição o bloco explica como começar. */
+  function syncCheckins() {
+    if (!data || data.phase === undefined) return;
+    const key = `${data.enrolled}|${data.phase}`;
+    if (checkins?.key === key) return;
+    checkins?.dispose();
+    checkins = { key, dispose: mountChallengeCheckins({ host: checkinsHost, api, challenge: data }) };
+  }
   const h1 = root.querySelector('h1');
 
   function paint() {
@@ -102,6 +117,7 @@ export function renderChallengeDetail({ root, session, api, navigate, params }) 
         ${data.actions.length === 0 ? emptyState({ title: 'Este desafio ainda não tem ações', message: 'Sua mentora está preparando as ações.' }) : html`<ul class="chal-actions">${data.actions.map((a) => actionItem(data, a, busy))}</ul>`}
       </section>`);
     applySizes(body);
+    syncCheckins();
   }
 
   async function load() {
@@ -116,6 +132,9 @@ export function renderChallengeDetail({ root, session, api, navigate, params }) 
     } catch (error) {
       if (disposed || mine !== gen) return;
       mount(body, error instanceof ApiError && error.status === 404 ? notFound() : retryBlock(error));
+      checkins?.dispose();
+      checkins = null;
+      mount(checkinsHost, html``);
     }
     body.setAttribute('aria-busy', 'false');
   }
@@ -174,6 +193,7 @@ export function renderChallengeDetail({ root, session, api, navigate, params }) 
 
   return () => {
     disposed = true;
+    checkins?.dispose();
     dispose();
   };
 }

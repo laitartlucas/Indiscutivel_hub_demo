@@ -2,6 +2,7 @@
 // As mesmas regras e formatos do servidor (server/src/services/mentora-panel.ts + funções SQL da migração 0019) sobre o estado em memória.
 // Só sinais de mentoria: o mock nunca devolve R$, pessoas, leads, empresas, oportunidades, tarefas nem alvos de meta.
 import { CATEGORY_LABELS } from './growth-data.js';
+import { phaseLabel } from './journey-data.js';
 import { ACTIVE_BAND_IDS, bandOf, compareActive, countError, deltaMonth, lastMonths, networkTotals, upsertMonth } from '../shared/active-students.js';
 import {
   activityLabel,
@@ -297,6 +298,7 @@ export function createMentoraDemo(d) {
     status: { enum: [...d.STUDENT_STATUSES, 'at_risk'], message: 'Estado inválido.' },
     className: 'text',
     activeStudents: { enum: ACTIVE_BAND_IDS, message: 'Faixa de alunas ativas inválida.' },
+    phase: { int: [1, 4] },
     sort: { enum: SORTS },
     order: { enum: ['asc', 'desc'] },
     ...d.PAGING,
@@ -316,6 +318,7 @@ export function createMentoraDemo(d) {
         const cls = i.student.className?.trim().toLowerCase() ?? '';
         if (classKey === '' ? cls !== '' : cls !== classKey) return false;
       }
+      if (query.phase !== undefined && d.phaseOf(i.student.id) !== query.phase) return false;
       return true;
     });
     const counts = { all: scoped.length, at_risk: scoped.filter((i) => i.atRisk).length };
@@ -365,6 +368,8 @@ export function createMentoraDemo(d) {
           activeDays14: i.activeDays14,
           atRisk: i.atRisk,
           activeStudents: activeById.get(i.student.id),
+          phase: d.phaseOf(i.student.id),
+          phaseLabel: phaseLabel(d.phaseOf(i.student.id)),
         })),
         page: { limit: query.limit, offset: query.offset, total: filtered.length },
         counts,

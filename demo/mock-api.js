@@ -10,6 +10,8 @@ import { createReportsDemo } from './mock-reports.js';
 import { createCommercialDemo } from './mock-commercial.js';
 import { createFinanceDemo } from './mock-finance.js';
 import { createMarketingDemo } from './mock-marketing.js';
+import { createJourneyDemo } from './mock-journey.js';
+import { migrateJourney } from './seed-journey.js';
 import { ASSISTANT_EMAIL, buildSeed, DEMO_PASSWORD, MENTORA_EMAIL, SCHEMA_VERSION, STUDENT_EMAIL } from './seed.js';
 
 export { ASSISTANT_EMAIL, DEMO_PASSWORD, MENTORA_EMAIL, STUDENT_EMAIL };
@@ -382,6 +384,8 @@ export function createDemoApi(options = {}) {
   let db = load();
   let session = loadSession();
   let lastStamp = 0;
+  /** Quem fez a requisição de verdade (a equipe age COMO a mentora, mas o "quem" registrado é a própria pessoa). */
+  let realActorId = null;
 
   function load() {
     try {
@@ -389,6 +393,8 @@ export function createDemoApi(options = {}) {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.schema === SCHEMA_VERSION && Array.isArray(parsed.users)) return parsed;
+        // Versão 18 (antes da Entrega 5): mantém o que a pessoa já fez e só acrescenta a jornada e os check-ins.
+        if (parsed?.schema === 18 && Array.isArray(parsed.users)) return migrateJourney(parsed, clock(), SCHEMA_VERSION);
       }
     } catch {
       // cópia ilegível: recomeça do exemplo
@@ -1865,7 +1871,7 @@ export function createDemoApi(options = {}) {
   };
   const NOTIFICATION_LINKS = [
     /^#\/$/,
-    /^#\/(tarefas|calendario|perfil|configuracoes|alunas|leads|pessoas|oportunidades|empresas|ajuda|notificacoes|metas|progresso|conquistas|desafios|gestao\/conquistas|gestao\/desafios)$/,
+    /^#\/(tarefas|calendario|perfil|configuracoes|alunas|leads|pessoas|oportunidades|empresas|ajuda|notificacoes|metas|progresso|conquistas|desafios|gestao\/conquistas|gestao\/desafios|gestao\/checkins)$/,
     /^#\/(alunas|leads|oportunidades|empresas|desafios)\/[0-9a-f-]{36}$/i,
     /^#\/comercial(\/(contatos|pipeline|atividades))?$/,
     /^#\/comercial\/(contatos|oportunidades)\/[0-9a-f-]{36}$/i,
@@ -2313,10 +2319,20 @@ export function createDemoApi(options = {}) {
     },
   });
 
+  // Jornada (fases) e check-ins dos desafios, com evidências e feedback (mesmas regras do servidor; ver mock-journey.js).
+  const journey = createJourneyDemo({
+    getDb: () => db, clock, stamp, newId, Errors, createIssues, requireBody, onlyKeys, readVersion, readQuery, requireAuth, requireStudent, addNotification,
+    PAGING, PAGING_DEFAULTS, UUID, CONTROL_CHARS, MULTILINE_CONTROL_CHARS,
+    actor: () => findUser(realActorId ?? session?.userId),
+    // Lido só na hora da chamada (a equipe é criada mais abaixo).
+    permissionsOf: (user) => team.permissionsOf(user),
+  });
+
   // Painel da mentora, lista enriquecida, notas privadas e sessões de mentoria (mesmas regras do servidor; ver mock-mentora.js).
   const mentoriaPanel = createMentoraDemo({
     getDb: () => db, clock, stamp, newId, Errors, createIssues, requireBody, onlyKeys, readVersion, requireAuth, requireStudent, readQuery,
     PAGING, PAGING_DEFAULTS, STUDENT_STATUSES, fold, studentDto, levelFor, LEVELS, UUID, ISO_INSTANT, CONTROL_CHARS, MULTILINE_CONTROL_CHARS, addNotification,
+    phaseOf: (studentId) => journey.phaseOf(studentId),
     // Metas do mês corrente: só contagens (total e atingidas ou no ritmo), nunca alvo nem realizado.
     goalCounts(u, tz) {
       const month = currentMonth(tz);
@@ -2364,6 +2380,7 @@ export function createDemoApi(options = {}) {
     ...finance.routes,
     ...marketing.routes,
     ...growth.routes,
+    ...journey.routes,
     ...mentoriaPanel.routes,
     ...followupDemo.routes,
     ...reports.routes,
@@ -2486,12 +2503,14 @@ export function createDemoApi(options = {}) {
         if (!match) continue;
         if (access.empty === 'search') return { status: 200, body: { q: url.searchParams.get('q') ?? '', data: [] } };
         const realSession = session;
+        realActorId = session?.userId ?? null;
         if (access.actAs) session = { ...session, userId: access.actAs };
         let result;
         try {
           result = run(match, url.searchParams, body);
         } finally {
           if (access.actAs) session = realSession;
+          realActorId = null;
         }
         // Depois de uma ação do CRM da aluna: avalia conquistas e desafios e devolve o campo aditivo `growth` (como o servidor).
         const actor = session ? findUser(session.userId) : null;
@@ -2539,7 +2558,9 @@ export function createDemoApi(options = {}) {
     return respond(handle(init.method ?? 'GET', url, body));
   }
 
-  function respond({ status, body, problem }) {
+  function respond({ status, body, problem, binary }) {
+    // Arquivo (download de evidência): os bytes com os cabeçalhos do servidor.
+    if (binary) return new Response(binary.bytes, { status, headers: binary.headers });
     if (status === 204 || body === undefined) return new Response(null, { status });
     return new Response(JSON.stringify(body), {
       status,

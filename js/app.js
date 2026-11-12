@@ -33,6 +33,8 @@ import { renderChallengeDetail } from './views/challenge-detail.js';
 import { renderMentoraAchievements } from './views/mentora-achievements.js';
 import { renderFollowup } from './views/followup.js';
 import { renderMentoraChallenges } from './views/mentora-challenges.js';
+import { renderMentoraChallengeDetail } from './views/mentora-challenge-detail.js';
+import { renderMentoraCheckins } from './views/mentora-checkins.js';
 import { renderMentoraReports } from './views/mentora-reports.js';
 import { renderHelp } from './views/help.js';
 import { renderLoading } from './views/loading.js';
@@ -149,6 +151,8 @@ const VIEWS = {
   challengeDetail: { render: renderChallengeDetail, title: 'Desafio' },
   mentoraAchievements: { render: renderMentoraAchievements, title: 'Conquistas' },
   mentoraChallenges: { render: renderMentoraChallenges, title: 'Desafios' },
+  mentoraChallengeDetail: { render: renderMentoraChallengeDetail, title: 'Desafio' },
+  mentoraCheckins: { render: renderMentoraCheckins, title: 'Check-ins' },
   followup: { render: renderFollowup, title: 'Acompanhamento' },
   mentoraReports: { render: renderMentoraReports, title: 'Relatórios da mentoria' },
   team: { render: renderTeam, title: 'Equipe' },

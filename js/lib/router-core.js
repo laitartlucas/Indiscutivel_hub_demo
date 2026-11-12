@@ -80,6 +80,9 @@ const ROUTES = [
   { pattern: '/desafios/:id', view: 'challengeDetail', access: 'user' },
   { pattern: '/gestao/conquistas', view: 'mentoraAchievements', access: 'mentoria', perm: 'achievements.manage' },
   { pattern: '/gestao/desafios', view: 'mentoraChallenges', access: 'mentoria', perm: 'challenges.manage' },
+  // Jornada e desafios (Entrega 5): participantes de um desafio e a leitura dos check-ins (dados das alunas: students.view).
+  { pattern: '/gestao/desafios/:id', view: 'mentoraChallengeDetail', access: 'mentoria', perm: 'students.view' },
+  { pattern: '/gestao/checkins', view: 'mentoraCheckins', access: 'mentoria', perm: 'students.view' },
   { pattern: '/acompanhamento', view: 'followup', access: 'mentoria', perm: 'followup.view' },
   { pattern: '/relatorios-mentoria', view: 'mentoraReports', access: 'mentoria', perm: 'reports.view' },
   { pattern: '/componentes', view: 'styleguide', access: 'user' },

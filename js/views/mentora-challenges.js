@@ -7,6 +7,7 @@ import { icon } from '../ih-icons.js';
 import { renderShell } from '../shell.js';
 import { alert, button, emptyState, skeleton } from '../ui/components.js';
 import { toast } from '../ui/toast.js';
+import { can } from '../lib/permissions.js';
 import { openChallengeEditor } from './challenge-editor.js';
 
 /** Gestão de desafios (mentora, kit M-Desafios): cartões com situação, adesão e conclusão média; editor em gaveta. */
@@ -20,7 +21,7 @@ function todayInBrasilia() {
   return new Date(Date.now() - 180 * 60_000).toISOString().slice(0, 10);
 }
 
-function row(c) {
+function row(c, canSeeStudents) {
   const key = mentoraStatus(c);
   const meta = CHALLENGE_STATUS_META[key];
   const tone = meta.tone;
@@ -29,6 +30,7 @@ function row(c) {
     <div class="mg-chal-main">
       <div class="mg-chal-titleline"><h3 class="mg-chal-title"><button type="button" class="mg-chal-open" data-action="open" data-id="${c.id}">${c.title}</button></h3><span class="mg-status mg-status--${tone}">${meta.label}</span></div>
       <p class="mg-chal-meta">${mentoraMeta(c)}</p>
+      ${c.status === 'draft' || !canSeeStudents ? '' : html`<a class="mg-chal-link" href="#/gestao/desafios/${encodeURIComponent(c.id)}">Participantes e check-ins${icon('arrowRight', { size: 14 })}<span class="sr-only"> de ${c.title}</span></a>`}
     </div>
     <div class="mg-stat"><span class="mg-label">Participantes</span><span class="mg-value">${participantsText(c)}</span></div>
     <div class="mg-stat"><span class="mg-label">Conclusão média</span>${none
@@ -67,7 +69,7 @@ export function renderMentoraChallenges({ root, session, api, navigate }) {
       }));
       return;
     }
-    mount(body, html`<ul class="mg-chal-list" aria-label="Desafios da mentoria">${data.data.map(row)}</ul>`);
+    mount(body, html`<ul class="mg-chal-list" aria-label="Desafios da mentoria">${data.data.map((c) => row(c, can(session.state.user, 'students.view')))}</ul>`);
     applySizes(body);
   }
 

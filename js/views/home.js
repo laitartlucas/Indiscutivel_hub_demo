@@ -31,6 +31,7 @@ import { mountActiveCard } from '../ui/active-students.js';
 import { iaCard } from '../ui/ia-link.js';
 import { focusHeading, mount } from '../lib/dom.js';
 import { levelNumber, nextLevelText, xpBar } from '../lib/progress.js';
+import { isPhase, phaseLabel, phaseNumber } from '../lib/journey.js';
 import { sessionLine } from '../lib/mentora.js';
 import { applySizes } from '../lib/widths.js';
 import {
@@ -187,7 +188,7 @@ function renderLevelCard(p) {
   return html`<section class="dash-card dash-level" aria-labelledby="dash-level-title">
     <div class="dash-level-who">
       <span class="dash-level-badge" aria-hidden="true"><span class="dash-level-cap">NÍVEL</span><span class="dash-level-num">${levelNumber(p.level.n)}</span></span>
-      <div><h2 id="dash-level-title">Minha evolução</h2><p class="dash-level-name"><span class="sr-only">Nível ${levelNumber(p.level.n)}: </span>${p.level.name}</p></div>
+      <div><h2 id="dash-level-title">Minha evolução</h2><p class="dash-level-name"><span class="sr-only">Nível ${levelNumber(p.level.n)}: </span>${p.level.name}</p><p class="dash-phase" id="dash-phase" hidden></p></div>
     </div>
     <div class="dash-level-xp">
       <p class="dash-level-row"><span>XP</span><strong>${bar.label}</strong></p>
@@ -291,12 +292,29 @@ export function renderHome({ root, session, api, navigate }) {
   const disposeActive = mountActiveCard({ host: root.querySelector('#dash-active'), api });
 
   // Nível e XP: região opcional. Qualquer falha deixa o cartão de fora, sem afetar o resto do Painel.
+  // A fase atual da jornada (GET /journey) entra discreta dentro do mesmo cartão, quando as duas respostas chegam.
+  let phase = null;
+  const paintPhase = () => {
+    const el = progressEl.querySelector('#dash-phase');
+    if (!el || !phase) return;
+    mount(el, html`<a href="#/progresso">Fase ${phaseNumber(phase.phase)} · ${phase.label || phaseLabel(phase.phase)}</a>`);
+    el.hidden = false;
+  };
   api
     .get(`/api/v1/progress${buildQuery({ tzOffset: tzOffsetMinutes() })}`)
     .then((p) => {
       if (disposed || !p || typeof p !== 'object' || !p.level) return;
       mount(progressEl, renderLevelCard(p));
       applySizes(progressEl);
+      paintPhase();
+    })
+    .catch(() => {});
+  api
+    .get('/api/v1/journey')
+    .then((j) => {
+      if (disposed || !isPhase(j?.current?.phase)) return;
+      phase = j.current;
+      paintPhase();
     })
     .catch(() => {});
 

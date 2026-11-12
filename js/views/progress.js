@@ -21,6 +21,7 @@ import { applySizes } from '../lib/widths.js';
 import { arcs, icon } from '../ih-icons.js';
 import { renderShell } from '../shell.js';
 import { alert, button, emptyState, skeleton } from '../ui/components.js';
+import { journeyCard } from './journey-ui.js';
 
 const BAR_SLOT = 640 / 6;
 const BAR_WIDTH = 52;
@@ -102,8 +103,8 @@ function emptyProgress() {
   })}</section>`;
 }
 
-function errorBlock(error) {
-  return html`<div class="stack">${alert({ tone: 'danger', message: describeError(error) })}<div class="row">${button({ label: 'Tentar de novo', variant: 'ghost', extra: { 'data-action': 'retry' } })}</div></div>`;
+function errorBlock(error, action = 'retry') {
+  return html`<div class="stack">${alert({ tone: 'danger', message: describeError(error) })}<div class="row">${button({ label: 'Tentar de novo', variant: 'ghost', extra: { 'data-action': action } })}</div></div>`;
 }
 
 /** Números reais de apoio: metas do mês, XP do mês e tarefas dos últimos 7 dias. Cada um que falhar simplesmente não aparece. */
@@ -143,9 +144,24 @@ export function renderProgress({ root, session, api, navigate }) {
     heading: 'Meu progresso',
     eyebrow: 'Crescimento',
     actions: html`<a class="btn btn-ghost" href="#/ranking">${icon('equipe', { size: 16 })}Evolução da comunidade</a>`,
-    content: html`<div class="growth" id="progress-region" aria-busy="true">${skeleton(5)}</div>`,
+    content: html`<div class="growth"><div class="growth" id="progress-region" aria-busy="true">${skeleton(5)}</div><div id="journey-region" aria-busy="true">${skeleton(3)}</div></div>`,
   });
   const region = root.querySelector('#progress-region');
+  const journeyRegion = root.querySelector('#journey-region');
+
+  /** "Minha jornada": as 4 fases da mentoria, a atual em destaque, e a linha do tempo com as observações da mentora. */
+  async function loadJourney() {
+    journeyRegion.setAttribute('aria-busy', 'true');
+    try {
+      const journey = await api.get('/api/v1/journey');
+      if (disposed) return;
+      mount(journeyRegion, journeyCard(journey, { title: 'Minha jornada', headingId: 'journey-title' }));
+    } catch (error) {
+      if (disposed) return;
+      mount(journeyRegion, html`<section class="growth-card" aria-labelledby="journey-title"><div class="growth-card-head"><h2 id="journey-title">Minha jornada</h2></div>${errorBlock(error, 'retry-journey')}</section>`);
+    }
+    journeyRegion.setAttribute('aria-busy', 'false');
+  }
 
   async function load() {
     const id = ++generation;
@@ -172,7 +188,11 @@ export function renderProgress({ root, session, api, navigate }) {
   region.addEventListener('click', (event) => {
     if (event.target.closest('[data-action="retry"]')) load();
   });
+  journeyRegion.addEventListener('click', (event) => {
+    if (event.target.closest('[data-action="retry-journey"]')) loadJourney();
+  });
   load();
+  loadJourney();
 
   return () => {
     disposed = true;

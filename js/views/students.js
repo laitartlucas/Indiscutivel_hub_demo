@@ -19,6 +19,7 @@ import {
 } from '../lib/mentora.js';
 import { buildQuery, hashParam, pageInfo, parseSort } from '../lib/query.js';
 import { STATUS_LABELS, statusTone } from '../lib/students.js';
+import { PHASE_FILTER_OPTIONS, isPhase, phaseLabel, phaseNumber } from '../lib/journey.js';
 import { ACTIVE_BANDS, formatCount, updatedAgo, updatedOn } from '../../shared/active-students.js';
 import { deltaBadge } from '../ui/active-students.js';
 import { icon } from '../ih-icons.js';
@@ -110,6 +111,8 @@ const COLUMNS = [
         : html`<span class="mp-progress"><span class="mp-track mp-track-sm" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${s.progressPct}" aria-label="Progresso até o próximo nível: ${s.progressPct}%"><span class="mp-fill" data-w="${s.progressPct}"></span></span><strong class="mp-progress-pct">${s.progressPct}%</strong></span>`,
   },
   { key: 'goals', label: 'Meta', nowrap: true, optional: true, render: (s) => html`<span${attrs({ title: goalsSentence(s.goals) })}>${goalsText(s.goals)}<span class="sr-only"> (${goalsSentence(s.goals)})</span></span>` },
+  // Fase da jornada (manual, registrada no perfil). Sem registro, o servidor devolve 1 (início da mentoria).
+  { key: 'phase', label: 'Fase', nowrap: true, render: (s) => (isPhase(s.phase) ? html`<span class="jr-phase-cell" title="${phaseLabel(s.phase)}">${phaseNumber(s.phase)}<span class="jr-phase-cell-label"> · ${phaseLabel(s.phase)}</span></span>` : html`<span class="mp-muted">—</span>`) },
   { key: 'level', label: 'Nível', nowrap: true, render: (s) => html`<span${attrs({ class: `mp-level${s.level.n >= 9 ? ' is-high' : ''}` })}>${levelText(s.level.n)}<span class="sr-only">, ${s.level.name}</span></span>` },
   {
     key: 'activeStudents',
@@ -157,7 +160,8 @@ function classOptions(classNames, current) {
 export function renderStudents({ root, session, api, navigate }) {
   viewer = session.state.user;
   const canCreate = can(viewer, 'students.manage');
-  let state = { q: hashParam('q'), status: '', className: '', activeStudents: '', ...parseSort(DEFAULT_SORT), offset: 0 };
+  const initialPhase = /^[1-4]$/.test(hashParam('fase')) ? hashParam('fase') : '';
+  let state = { q: hashParam('q'), status: '', className: '', activeStudents: '', phase: initialPhase, ...parseSort(DEFAULT_SORT), offset: 0 };
   let rows = [];
   let counts = null;
   let classNames = [];
@@ -168,6 +172,7 @@ export function renderStudents({ root, session, api, navigate }) {
       <div class="toolbar-search">${searchField({ id: 'students-search', label: 'Buscar aluna', placeholder: 'Buscar uma aluna…' })}</div>
       <div class="toolbar-actions">
         <div id="students-class-host">${selectField({ id: 'students-class', label: 'Turma', value: '', options: classOptions([], '') })}</div>
+        ${selectField({ id: 'students-phase', label: 'Fase', value: initialPhase, options: PHASE_FILTER_OPTIONS })}
         ${selectField({ id: 'students-sort', label: 'Ordenar por', value: DEFAULT_SORT, options: STUDENT_SORT_OPTIONS })}
         ${button({ label: 'Limpar filtros', variant: 'ghost', id: 'students-clear', extra: { hidden: true } })}
       </div>
@@ -197,8 +202,9 @@ export function renderStudents({ root, session, api, navigate }) {
   const segmentRegion = root.querySelector('#student-segments');
   const activeRegion = root.querySelector('#active-segments');
   const exportButton = root.querySelector('#students-export');
+  const phaseSelect = root.querySelector('#students-phase');
 
-  const hasFilters = () => Boolean(state.q || state.status || state.className || state.activeStudents);
+  const hasFilters = () => Boolean(state.q || state.status || state.className || state.activeStudents || state.phase);
 
   function paintFilters() {
     const focused = segmentRegion.contains(document.activeElement) ? document.activeElement.dataset.segment : null;
@@ -208,6 +214,7 @@ export function renderStudents({ root, session, api, navigate }) {
     mount(activeRegion, activeSegments(activeCounts, state.activeStudents));
     if (bandFocused !== null && bandFocused !== undefined) activeRegion.querySelector(`[data-active-band="${CSS.escape(bandFocused)}"]`)?.focus();
     sortSelect.value = `${state.sort}:${state.order}`;
+    phaseSelect.value = state.phase;
     const hadFocus = classHost.contains(document.activeElement);
     mount(classHost, selectField({ id: 'students-class', label: 'Turma', value: state.className, options: classOptions(classNames, state.className) }));
     if (hadFocus) classHost.querySelector('select')?.focus();
@@ -342,7 +349,7 @@ export function renderStudents({ root, session, api, navigate }) {
   function clearFilters() {
     scheduleSearch.cancel();
     search.value = '';
-    setFilters({ q: '', status: '', className: '', activeStudents: '' });
+    setFilters({ q: '', status: '', className: '', activeStudents: '', phase: '' });
   }
 
   const scheduleSearch = debounce((value) => setFilters({ q: value.trim() }), SEARCH_DELAY_MS);
@@ -351,6 +358,7 @@ export function renderStudents({ root, session, api, navigate }) {
     if (event.target.id === 'students-class') setFilters({ className: event.target.value });
   });
   sortSelect.addEventListener('change', (event) => setFilters(parseSort(event.target.value)));
+  phaseSelect.addEventListener('change', (event) => setFilters({ phase: event.target.value }));
   clearButton.addEventListener('click', () => {
     clearFilters();
     search.focus();

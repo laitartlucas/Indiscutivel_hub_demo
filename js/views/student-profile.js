@@ -16,6 +16,7 @@ import { mountStudentGrowth } from './student-growth.js';
 import { mountStudentCommercial } from './student-commercial.js';
 import { mountStudentFinance } from './student-finance.js';
 import { mountStudentMarketing } from './student-marketing.js';
+import { mountStudentCheckins, mountStudentJourney } from './student-journey.js';
 
 const INVITE_LABELS = { pending: 'Pendente', expired: 'Expirado', accepted: 'Aceito', cancelled: 'Cancelado' };
 const INVITE_TONES = { pending: 'warn', expired: 'bad', accepted: 'good', cancelled: 'neutral' };
@@ -134,11 +135,15 @@ export function renderStudentProfile({ root, session, api, navigate, params }) {
     eyebrow: html`Mentoria · <a class="back-link" href="#/alunas">← Minhas alunas</a>`,
     subtitle: html`<span id="profile-subtitle"></span>`,
     actions: html`<span class="profile-actions" id="profile-actions"></span>`,
-    content: html`<div id="profile-growth"></div><div id="profile-commercial"></div><div id="profile-finance"></div><div id="profile-marketing"></div><div id="profile-region" aria-live="off">${skeleton(4)}</div>`,
+    content: html`<div id="profile-growth"></div><div class="growth jr-profile"><div id="profile-journey"></div><div id="profile-checkins"></div></div><div id="profile-commercial"></div><div id="profile-finance"></div><div id="profile-marketing"></div><div id="profile-region" aria-live="off">${skeleton(4)}</div>`,
   });
 
   const region = root.querySelector('#profile-region');
   const growthHost = root.querySelector('#profile-growth');
+  const journeyHost = root.querySelector('#profile-journey');
+  const checkinsHost = root.querySelector('#profile-checkins');
+  let disposeJourney = null;
+  let disposeCheckins = null;
   const commercialHost = root.querySelector('#profile-commercial');
   const financeHost = root.querySelector('#profile-finance');
   let disposeFinance = null;
@@ -185,6 +190,10 @@ export function renderStudentProfile({ root, session, api, navigate, params }) {
       // As seções de mentoria carregam sozinhas, uma vez por visita (uma recarga depois de uma ação não as refaz).
       if (!growth) {
         growth = mountStudentGrowth({ host: growthHost, api, student: data.student, can: (key) => can(session.state.user, key) });
+        // Jornada (fase manual, com histórico) e Check-ins dos desafios: dados de mentoria, sob students.view (a rota já exige).
+        const canKey = (key) => can(session.state.user, key);
+        disposeJourney = mountStudentJourney({ host: journeyHost, api, student: data.student, can: canKey });
+        disposeCheckins = mountStudentCheckins({ host: checkinsHost, api, student: data.student, can: canKey });
         // Indicadores comerciais (só números agregados): só para quem tem a permissão business.view.
         if (can(session.state.user, 'business.view')) {
           disposeCommercial = mountStudentCommercial({ host: commercialHost, api, studentId: data.student.id });
@@ -370,6 +379,8 @@ export function renderStudentProfile({ root, session, api, navigate, params }) {
   return () => {
     disposed = true;
     growth?.dispose();
+    disposeJourney?.();
+    disposeCheckins?.();
     disposeCommercial?.();
     disposeFinance?.();
     disposeMarketing?.();

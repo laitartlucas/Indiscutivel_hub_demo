@@ -110,6 +110,18 @@ const STUDENT_SECTIONS = [
     ],
   },
   {
+    id: 'jornada',
+    title: 'Minha jornada e Check-ins',
+    intro: 'A sua fase na mentoria e o registro diário dos desafios.',
+    items: [
+      'Em Meu progresso, o cartão "Minha jornada" mostra as 4 fases da mentoria (Método Validado, Autoridade, Escala e Gestão), com a sua fase atual em destaque, e a linha do tempo com as datas e as observações da sua mentora. A fase é registrada por ela: nada muda sozinho. O Painel mostra a fase atual no cartão "Minha evolução".',
+      'Na página de um desafio em que você está inscrita, a seção Check-ins guarda um registro por dia: o que você fez (texto), até 5 links (começando com https://) e "Cumpri o dia". O dia de hoje vem selecionado; troque o dia na lista para registrar um dia anterior do desafio.',
+      'Em "Fotos e comprovantes" você anexa até 5 arquivos por dia. Fotos são reduzidas no seu aparelho antes do envio; comprovantes podem ser imagem ou PDF de até 3 MB. O medidor mostra quanto do seu espaço (50 MB) já foi usado; remova arquivos que não precisa mais para liberar espaço.',
+      'O histórico mostra cada dia registrado com o retorno da sua mentora, quando ela responder (você também recebe um aviso no sino). Só você e a sua mentora veem os seus check-ins e arquivos.',
+      'Você pode editar e anexar até 7 dias depois do fim do desafio. Depois disso, os check-ins ficam só para leitura.',
+    ],
+  },
+  {
     id: 'relatorios',
     title: 'Relatórios',
     intro: 'Os números do seu CRM em um só lugar, calculados no sistema a partir dos seus dados.',
@@ -177,6 +189,18 @@ const MENTORA_SECTIONS = [
       'Busque por nome, e-mail ou telefone, filtre pela situação e ordene por nome, cadastro ou último acesso.',
       'As situações são: Ativa, Convite pendente, Convite expirado, Sem convite enviado, Bloqueada e Inativa. Abra uma aluna para ver os dados, os convites e as ações disponíveis.',
       'A coluna "Alunas ativas" mostra o número que cada aluna informa sobre as alunas dela (cada aluna também é mentora), com a variação em relação ao mês anterior e há quantos dias foi atualizado. "—" quer dizer que ela ainda não informou. Clique no título da coluna (ou use "Ordenar por") para ordenar, e use as faixas (Sem informar, 0, 1 a 5, 6 a 10, 11 ou mais) para filtrar. O número é informado pela própria aluna: o Hub não o calcula do CRM dela.',
+    ],
+  },
+  {
+    id: 'jornada',
+    title: 'Jornada e Check-ins',
+    intro: 'A fase de cada aluna na mentoria e o que elas registram por dia nos desafios.',
+    items: [
+      'No perfil da aluna, o bloco Jornada mostra a fase atual (Método Validado, Autoridade, Escala ou Gestão) e o histórico. "Alterar fase" registra a nova fase com uma observação opcional: a aluna vê a fase, a data e a observação, e recebe um aviso. A fase nunca muda sozinha; voltar de fase também fica no histórico. Precisa da permissão de gerenciar alunas.',
+      'Em Minhas alunas, a coluna Fase mostra a fase de cada uma, e o filtro "Fase" lista só as alunas de uma fase.',
+      'O item Check-ins do menu reúne os registros diários das alunas nos desafios. Filtre por desafio, por aluna e pela situação (Aguardando retorno ou Com retorno). Cada check-in mostra o texto, os links (abrem em nova aba), as fotos (toque para ver maior) e os comprovantes (para baixar).',
+      '"Dar retorno" envia a sua resposta para a aluna, que recebe um aviso. Um novo retorno substitui o anterior. Precisa da permissão de gerenciar desafios.',
+      'Em Desafios, "Participantes e check-ins" abre a lista de alunas do desafio: quem concluiu, quem está em dia (check-in nos últimos 3 dias), quem está atrasada e quem não começou, com o último check-in e os retornos pendentes.',
     ],
   },
   {

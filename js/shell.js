@@ -42,6 +42,8 @@ const NAV_ADMIN = [
   { id: 'followup', label: 'Acompanhamento', href: '#/acompanhamento', icon: 'acompanhamento', group: 'Mentoria', bottom: false, perm: 'followup.view' },
   // Gestão de Desafios e Conquistas: catálogo e adesão, nunca dados de negócio das alunas.
   { id: 'mg-challenges', label: 'Desafios', href: '#/gestao/desafios', icon: 'desafios', group: 'Crescimento', bottom: false, perm: 'challenges.manage' },
+  // Check-ins: o que as alunas registram por dia nos desafios (leitura sob students.view; o retorno pede challenges.manage).
+  { id: 'mg-checkins', label: 'Check-ins', href: '#/gestao/checkins', icon: 'check', group: 'Crescimento', bottom: false, perm: 'students.view' },
   { id: 'mg-achievements', label: 'Conquistas', href: '#/gestao/conquistas', icon: 'conquistas', group: 'Crescimento', bottom: false, perm: 'achievements.manage' },
   // Análises: relatórios da mentoria (só sinais de mentoria; nunca R$ nem CRM das alunas).
   { id: 'mentora-reports', label: 'Relatórios', href: '#/relatorios-mentoria', icon: 'relatorios', group: 'Análises', bottom: false, perm: 'reports.view' },
