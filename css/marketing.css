@@ -1,0 +1,86 @@
+/* ---------- Marketing (visão geral, campanhas, investimentos, Instagram) ----------
+   Só tokens do kit. Reaproveita .cc-tabs (barra de seções), .lead-* (cartões), .od-* (cabeçalho), .rp-sources (barras),
+   .fin-kpis (faixa de totais) e .data-table; aqui ficam só os indicadores e os gráficos simples. */
+
+/* 11 indicadores */
+.mk-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; margin-bottom: var(--space-4); }
+.mk-kpi { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--white); cursor: help; }
+.mk-kpi-value { font-family: var(--font-serif); font-size: 24px; line-height: 1.05; color: var(--green-900); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.mk-kpi.is-gold .mk-kpi-value { color: var(--gold-text); }
+.mk-kpi.is-bad .mk-kpi-value { color: var(--wine); }
+
+/* "Como calculamos" */
+.mk-formulas { margin-bottom: var(--space-5); }
+.mk-formulas-body { padding: 14px 18px 18px; }
+.mk-formula-list { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; }
+.mk-formula { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mk-formula dt { font-size: 13px; font-weight: 700; color: var(--green-900); }
+.mk-formula dd { margin: 0; font-size: 13px; line-height: 1.5; color: var(--brown); }
+.mk-formula-note { margin: 14px 0 0; font-size: 12.5px; }
+
+.mk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; margin-bottom: 24px; }
+.cc-funnels-card + .mk-grid, .mk-grid + .cc-funnels-card { margin-top: 0; }
+.mk-grid + .lead-card { margin-bottom: 24px; }
+.mk-fill { background: var(--green-700); }
+.mk-row-total td { background: var(--paper-2); font-weight: 700; }
+.mk-cell { text-decoration: none; color: inherit; }
+.mk-inline-link { display: inline-flex; align-items: center; }
+
+/* legenda e barras (investimento = verde, receita = dourado) */
+.mk-legend { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-muted); }
+.mk-swatch { display: inline-block; width: 10px; height: 10px; margin-left: 10px; border-radius: 2px; }
+.mk-swatch:first-child { margin-left: 0; }
+.mk-swatch.is-inv, .mk-bar.is-inv, .mk-vbar.is-inv { background: var(--green-700); }
+.mk-swatch.is-rev, .mk-bar.is-rev, .mk-vbar.is-rev { background: var(--gold-500); }
+.mk-pairs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.mk-pair { display: grid; grid-template-columns: minmax(90px, 160px) minmax(0, 1fr); gap: 4px 14px; align-items: center; }
+.mk-pair-name { font-size: 13px; font-weight: 700; color: var(--brown); overflow-wrap: anywhere; }
+.mk-pair-bars { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mk-bar { display: block; width: 0; height: 8px; border-radius: 4px; }
+.mk-pair-values { grid-column: 2; font-size: var(--fs-caption); color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+
+/* colunas verticais (6 meses; períodos do Instagram) */
+.mk-columns { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; align-items: end; min-height: 180px; padding-top: 8px; }
+.mk-col { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.mk-col-bars { display: flex; align-items: flex-end; justify-content: center; gap: 3px; width: 100%; height: 140px; border-bottom: 1px solid var(--line); }
+.mk-vbar { display: block; width: 40%; max-width: 18px; height: 0; border-radius: 3px 3px 0 0; }
+.mk-col-label { font-size: 11.5px; font-weight: 700; color: var(--brown); white-space: nowrap; }
+.mk-col-sub { font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
+
+/* números curtos (Instagram na visão geral, comparação) */
+.mk-mini { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.mk-mini div { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 12px 14px; border-radius: var(--r-md); background: var(--paper-2); }
+.mk-mini dt { font-size: var(--fs-eyebrow); font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-muted); }
+.mk-mini dd { margin: 0; font-family: var(--font-serif); font-size: 22px; color: var(--green-900); font-variant-numeric: tabular-nums; }
+.mk-mini dd.mk-delta { font-family: var(--font-sans); font-size: 12px; }
+
+/* Instagram */
+.mk-manual { margin-bottom: var(--space-4); }
+.mk-ig-grid { margin-bottom: 24px; }
+.mk-count-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mk-engagement { margin: 0 0 var(--space-3); font-size: 13px; font-weight: 700; color: var(--green-900); }
+.mk-history { margin-bottom: 24px; }
+.mk-hero { margin-bottom: var(--space-4); }
+.mk-hero .od-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.mk-totals { max-width: 560px; }
+
+@media (max-width: 1180px) {
+  .mk-grid { grid-template-columns: minmax(0, 1fr); }
+  .mk-formula-list { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .mk-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .mk-kpi { padding: 12px 14px; }
+  .mk-kpi-value { font-size: 19px; }
+  .mk-mini { grid-template-columns: minmax(0, 1fr); }
+  .mk-pair { grid-template-columns: minmax(0, 1fr); }
+  .mk-pair-values { grid-column: 1; }
+  .mk-columns { gap: 4px; }
+  .mk-col-label, .mk-col-sub { font-size: 10px; }
+  .mk-count-grid { grid-template-columns: minmax(0, 1fr); }
+  .mk-hero .od-actions { justify-content: stretch; }
+  .mk-hero .od-actions .btn { flex: 1 1 auto; }
+  .mk-inline-link { display: flex; align-items: center; min-height: var(--target-min); }
+}
+.mk-sub { display: block; font-size: var(--fs-caption); font-weight: 400; color: var(--ink-muted); }

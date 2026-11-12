@@ -1,0 +1,89 @@
+/* ---------- Financeiro (vendas, a receber, detalhe da venda, diálogos) ----------
+   Só tokens do kit (tokens.css). Reaproveita .lead-* (cartões, KPIs, linha do tempo), .od-* (cabeçalho do detalhe),
+   .segments, .data-table e .dialog-drawer; aqui ficam só as peças novas. */
+
+/* faixa de totais (Vendas, A receber, bloco Financeiro da Visão geral) */
+.fin-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: var(--space-4); }
+.fin-kpi { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--white); }
+.fin-kpi-value { font-family: var(--font-serif); font-size: 26px; line-height: 1.05; color: var(--green-900); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fin-kpi.is-gold .fin-kpi-value { color: var(--gold-text); }
+.fin-kpi.is-bad .fin-kpi-value, .lead-kpi-value.fin-is-bad { color: var(--wine); }
+.fin-kpi.is-bad { border-color: var(--wine-border); }
+
+/* células de lista */
+.fin-cell { text-decoration: none; color: inherit; }
+.fin-due { display: inline-flex; flex-direction: column; gap: 2px; }
+.fin-due-rel { font-size: var(--fs-caption); color: var(--ink-muted); }
+.fin-due-rel.is-late { color: var(--wine); font-weight: 700; }
+.fin-negative { color: var(--wine); font-weight: 700; }
+.fin-sub { display: block; font-size: var(--fs-caption); color: var(--ink-muted); }
+.fin-inline-link { display: inline-flex; align-items: center; }
+
+/* detalhe da venda */
+.fin-hero { margin-bottom: var(--space-4); }
+.fin-hero .od-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.fin-card .table-wrap { margin-inline: -28px; border-radius: 0; border-inline: 0; }
+
+/* bloco Financeiro da Visão geral */
+.fin-overview { margin-bottom: var(--space-5); }
+.fin-overview-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+.fin-overview .fin-kpis { margin-bottom: 0; }
+.fin-overview-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.fin-mini-title { margin: 0 0 8px; font-family: var(--font-sans); font-size: var(--fs-eyebrow); font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-muted); }
+.fin-mini { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.fin-mini-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: var(--target-min); padding: 6px 4px; border-top: 1px solid var(--line-soft); color: var(--ink); text-decoration: none; }
+.fin-mini li:first-child .fin-mini-item { border-top: 0; }
+.fin-mini-item:hover { background: var(--paper-2); }
+.fin-mini-item:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-sm); }
+.fin-mini-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fin-mini-name { font-size: 13.5px; font-weight: 700; overflow-wrap: anywhere; }
+.fin-mini-sub { font-size: var(--fs-caption); color: var(--ink-muted); overflow-wrap: anywhere; }
+.fin-mini-sub.is-late { color: var(--wine); font-weight: 700; }
+.fin-mini-value { flex: none; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--green-900); white-space: nowrap; }
+
+/* compras do contato */
+.fin-pending { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.fin-pending-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--brown); }
+.fin-pending-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 14px; border: 1px dashed var(--line-btn); border-radius: var(--r-md); font-size: 13px; }
+.fin-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.fin-totals div { display: flex; flex-direction: column; gap: 2px; }
+.fin-totals dt { font-size: var(--fs-caption); color: var(--ink-muted); }
+.fin-totals dd { margin: 0; font-size: 15px; font-weight: 700; color: var(--green-900); font-variant-numeric: tabular-nums; }
+
+/* diálogos */
+.fin-dialog .dialog-actions { flex-wrap: wrap; }
+.fin-mode { margin: 0 0 var(--space-3); padding: 0; border: 0; min-width: 0; }
+.fin-mode .segments { margin: 8px 0 0; }
+.segment[role='radio'][aria-checked='true'] { background: var(--green-900); border-color: var(--green-900); color: var(--on-green); }
+.segment[role='radio']:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.fin-preview { display: flex; flex-direction: column; gap: 10px; margin: var(--space-2) 0 var(--space-4); padding: 16px 18px; border-radius: var(--r-md); background: var(--paper-2); border: 1px solid var(--line-soft); }
+.fin-preview-title { margin: 0; font-family: var(--font-sans); font-size: var(--fs-eyebrow); font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-muted); }
+.fin-preview-summary { margin: 0; font-size: 13.5px; font-weight: 700; color: var(--green-900); }
+.fin-preview-empty { margin: 0; font-size: 13px; color: var(--ink-muted); }
+.fin-preview-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; }
+.fin-preview-item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line-soft); font-size: 13px; }
+.fin-preview-item:first-child { border-top: 0; }
+.fin-preview-name { color: var(--brown); }
+.fin-preview-date { color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.fin-preview-amount { font-variant-numeric: tabular-nums; color: var(--ink); }
+.fin-preview-total { margin: 0; display: flex; justify-content: space-between; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-muted); }
+.fin-preview-total strong { color: var(--green-900); font-size: 15px; }
+
+@media (max-width: 1180px) {
+  .fin-overview-lists { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .fin-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .fin-kpi { padding: 12px 14px; }
+  .fin-kpi-value { font-size: 20px; }
+  .fin-card .table-wrap { margin-inline: -18px; }
+  .fin-hero .od-actions { justify-content: stretch; }
+  .fin-hero .od-actions .btn { flex: 1 1 auto; }
+  .fin-totals { grid-template-columns: minmax(0, 1fr); }
+  .fin-inline-link { min-height: var(--target-min); }
+  .fin-dialog .dialog-actions .btn { flex: 1 1 auto; }
+  /* dentro do diálogo, os botões de modo não sangram para fora como os filtros da página */
+  .fin-mode .segments { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; }
+  .fin-mode .segment { flex: 1 1 auto; justify-content: center; }
+}

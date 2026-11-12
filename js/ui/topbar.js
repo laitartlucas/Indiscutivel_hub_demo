@@ -42,7 +42,7 @@ export function configureTopbar(client) {
 // ---------- marcação ----------
 
 export function topbarSearchHtml(user) {
-  const placeholder = user?.role === 'admin' || user?.role === 'staff' ? 'Buscar alunas…' : 'Buscar pessoas, leads, tarefas…';
+  const placeholder = user?.role === 'admin' || user?.role === 'staff' ? 'Buscar alunas…' : 'Buscar contatos, tarefas, produtos…';
   return html`<div class="gsearch" id="gsearch" data-mobile-open="false">
     <form class="gsearch-form" role="search" aria-label="Busca global" autocomplete="off" novalidate>
       <button type="button" class="icon-btn gsearch-back" id="gsearch-back" aria-label="Fechar a busca">${icon('arrowLeft', { size: 20 })}</button>
@@ -606,6 +606,7 @@ function mountSearch(root, parts) {
 
 const GROUP_ICONS = {
   people: 'contatos',
+  contacts: 'contatos',
   leads: 'leads',
   companies: 'empresas',
   deals: 'pipeline',

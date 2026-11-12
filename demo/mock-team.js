@@ -1,6 +1,7 @@
 // Equipe e Permissões da mentora, na demonstração.
 // As mesmas regras do servidor (server/src/services/team.ts + plugins/access.ts) sobre o estado em memória: a equipe (role `staff`)
-// atua COMO a mentora dona, só com as permissões do papel, avaliadas a cada requisição; nunca vê dado de negócio das alunas;
+// atua COMO a mentora dona, só com as permissões do papel, avaliadas a cada requisição; nunca vê nome nem contato de cliente das alunas
+// (com `business.view`, só os números comerciais e financeiros de /mentora/students/:id/commercial e /finance, guardados pela tabela MENTORIA_POLICY);
 // só a proprietária gere equipe e papéis.
 import { normalizePermissions, PERMISSION_GROUPS, PERMISSIONS, policyFor, SYSTEM_ROLES } from './team-data.js';
 

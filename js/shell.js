@@ -12,23 +12,19 @@ import { iaNavItem } from './ui/ia-link.js';
 import { mountTopbar, topbarSearchHtml, topbarToolsHtml } from './ui/topbar.js';
 import { refreshNotifications, resetNotifications } from './lib/notifications.js';
 
-// "Oportunidades" ganha o próprio grupo ("Negócio") em vez de crescer "Cadastros": Produtos/Pessoas são
-// cadastros (dados de apoio, sem fluxo próprio); Oportunidades é o funil de vendas em si — misturar os
-// dois no mesmo rótulo confundiria mais do que ajudaria (decisão da Task 3, documentada aqui e no relatório).
+// Menu da aluna: o Painel e a Central Comercial (contatos, pipeline, atividades e produtos, com abas próprias) no topo;
+// depois a Rotina (tarefas e agenda), Crescimento, Análises, Inteligência e Conta. "Comercial" é UM item só: as telas
+// dele (#/comercial/...) e Produtos acendem esse item (active: 'commercial').
 const NAV_USER = [
   { id: 'home', label: 'Painel', href: '#/', icon: 'dashboard' },
-  { id: 'products', label: 'Produtos', href: '#/produtos', icon: 'crm', group: 'Cadastros' },
-  { id: 'people', label: 'Pessoas', href: '#/pessoas', icon: 'contatos', group: 'Cadastros' },
-  { id: 'deals', label: 'Oportunidades', short: 'Negócios', href: '#/oportunidades', icon: 'pipeline', group: 'Negócio' },
-  { id: 'clients', label: 'Clientes', href: '#/clientes', icon: 'empresas', group: 'Negócio', bottom: false },
-  // Gestão: leads, tarefas e agenda da aluna.
-  { id: 'leads', label: 'Leads', href: '#/leads', icon: 'leads', group: 'Gestão', bottom: false },
-  { id: 'companies', label: 'Empresas', href: '#/empresas', icon: 'empresas', group: 'Gestão', bottom: false },
+  { id: 'commercial', label: 'Comercial', href: '#/comercial', icon: 'pipeline' },
+  // Marketing (campanhas, investimentos, Instagram): fora da barra de baixo do celular, que já tem 5 atalhos; no celular fica no menu.
+  { id: 'marketing', label: 'Marketing', href: '#/marketing', icon: 'megafone', bottom: false },
   // O selo de Tarefas é o que pede ação agora (atrasadas + as de hoje abertas).
-  { id: 'tasks', label: 'Tarefas', href: '#/tarefas', icon: 'tarefas', group: 'Gestão', badge: true },
-  { id: 'calendar', label: 'Calendário', href: '#/calendario', icon: 'calendar', group: 'Gestão', bottom: false },
+  { id: 'tasks', label: 'Tarefas', href: '#/tarefas', icon: 'tarefas', group: 'Rotina', badge: true },
+  { id: 'calendar', label: 'Calendário', href: '#/calendario', icon: 'calendar', group: 'Rotina' },
   // Crescimento: metas do mês, desafios, conquistas, nível/XP e a evolução da comunidade (ranking opt-in). Análises: relatórios.
-  { id: 'goals', label: 'Metas', href: '#/metas', icon: 'metas', group: 'Crescimento', bottom: false },
+  { id: 'goals', label: 'Metas', href: '#/metas', icon: 'metas', group: 'Crescimento' },
   { id: 'challenges', label: 'Desafios', href: '#/desafios', icon: 'desafios', group: 'Crescimento', bottom: false },
   { id: 'achievements', label: 'Conquistas', href: '#/conquistas', icon: 'conquistas', group: 'Crescimento', bottom: false },
   { id: 'progress', label: 'Meu progresso', href: '#/progresso', icon: 'progresso', group: 'Crescimento', bottom: false },

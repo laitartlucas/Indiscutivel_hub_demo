@@ -1,6 +1,7 @@
 import { debounce } from '../lib/debounce.js';
 import { mount } from '../lib/dom.js';
 import { attrs, html } from '../lib/html.js';
+import { listOf } from '../lib/commercial.js';
 
 const SUGGESTION_LIMIT = 8;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -21,7 +22,7 @@ const MIN_QUERY_LENGTH = 2;
  * escolher invalida a seleção (limpa o hidden) — ver `attachPersonPicker()` abaixo: sem isso, o texto
  * poderia divergir do id enviado e a Oportunidade seria criada para a pessoa errada.
  */
-export function personPickerField({ inputId = 'deal-person-search', hint, required = true, label = 'Pessoa', value = null, searchName } = {}) {
+export function personPickerField({ inputId = 'deal-person-search', hint, required = true, label = 'Contato', value = null, searchName } = {}) {
   const listboxId = `${inputId}-listbox`;
   const errorId = `${inputId}-error`;
   return html`<div class="field" id="${inputId}-field">
@@ -41,7 +42,7 @@ export function personPickerField({ inputId = 'deal-person-search', hint, requir
         value: value?.name,
         'aria-describedby': [hint ? `${inputId}-hint` : null, errorId].filter(Boolean).join(' '),
       })}>
-      <ul role="listbox" id="${listboxId}" class="combobox-listbox" aria-label="Sugestões de pessoas" hidden></ul>
+      <ul role="listbox" id="${listboxId}" class="combobox-listbox" aria-label="Sugestões de contatos" hidden></ul>
     </div>
     <input type="hidden" name="personId" value="${value?.id ?? ''}">
     ${hint ? html`<p class="field-hint" id="${inputId}-hint">${hint}</p>` : ''}
@@ -51,7 +52,7 @@ export function personPickerField({ inputId = 'deal-person-search', hint, requir
 
 /** Validador para o campo oculto `personId` (usado em `validators` do openFormDialog). */
 export function personIdError(value) {
-  return value ? null : 'Selecione uma pessoa da lista de sugestões.';
+  return value ? null : 'Selecione um contato da lista de sugestões.';
 }
 
 /**
@@ -124,7 +125,7 @@ export function attachPersonPicker(dialog, { api, inputId = 'deal-person-search'
     }
     // Corrida: só pinta se o texto não mudou desde o pedido (resposta lenta de uma busca já substituída).
     if (!dialog.isConnected || input.value.trim() !== trimmed) return;
-    options = result.data.map((person) => ({ id: person.id, name: person.name }));
+    options = listOf(result).map((person) => ({ id: person.id, name: person.name }));
     activeIndex = -1;
     if (options.length === 0) closeList();
     else renderList();

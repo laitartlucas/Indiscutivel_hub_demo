@@ -136,7 +136,7 @@ function emptyReport() {
     iconName: 'relatorios',
     title: 'Ainda não há dados no período',
     message: 'Quando você ganhar ou perder oportunidades, cadastrar leads ou concluir tarefas, os números e os gráficos aparecem aqui. Experimente outro período.',
-    action: html`<a class="btn btn-primary" href="#/leads">Ver meus leads</a>`,
+    action: html`<a class="btn btn-primary" href="#/comercial/contatos">Ver meus contatos</a>`,
   })}</section>`;
 }
 

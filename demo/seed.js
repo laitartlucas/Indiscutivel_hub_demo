@@ -1,6 +1,9 @@
+import { buildFinanceSeed } from './seed-finance.js';
 import { buildGrowthSeed } from './seed-growth.js';
+import { buildMarketingSeed } from './seed-marketing.js';
 import { weekBounds } from './mentora-data.js';
 import { SYSTEM_ROLES } from './team-data.js';
+import { DEFAULT_FUNNELS, defaultFunnelRows } from './funnels-data.js';
 import { monthKey, shiftMonth } from '../shared/active-students.js';
 
 // Dados fictícios da versão de demonstração (nada aqui é real). Determinístico: tudo é calculado a partir do "agora"
@@ -10,7 +13,7 @@ export const DEMO_PASSWORD = 'Demo-1234';
 export const MENTORA_EMAIL = 'mentora@demo.com';
 export const STUDENT_EMAIL = 'aluna@demo.com';
 export const ASSISTANT_EMAIL = 'assistente@demo.com';
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 18;
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -32,6 +35,8 @@ const cid = (n) => fixedId('90000000', n);
 const hid = (n) => fixedId('a0000000', n);
 const xid = (n) => fixedId('e0000000', n);
 const gid = (n) => fixedId('d0000000', n);
+const fnid = (student, f) => fixedId('a4000000', student * 100 + f);
+const stid = (student, f, s) => fixedId('a5000000', student * 10000 + f * 100 + s);
 
 function ymd(ms) {
   return new Date(ms).toISOString().slice(0, 10);
@@ -307,32 +312,57 @@ export function buildSeed(now) {
     product(7, 'E-book Guia do Primeiro Cliente (antigo)', '47.00', 120, true),
   ];
 
+  // ---- Central Comercial: os 15 funis padrão de TODA aluna (como a migração 0026 faz para quem já existe), com ids fixos.
+  const funnelRows = [];
+  const stageRows = [];
+  for (const u of users.filter((x) => x.role === 'user')) {
+    const n = Number(u.id.slice(-4));
+    const rows = defaultFunnelRows(u.id, u.createdAt, { funnel: (f) => fnid(n, f), stage: (f, s) => stid(n, f, s) });
+    funnelRows.push(...rows.funnels);
+    stageRows.push(...rows.stages);
+  }
+  const FPOS = Object.fromEntries(DEFAULT_FUNNELS.map((f, i) => [f.key, i + 1]));
+  /** Etapa de um funil padrão da aluna `n`: número da etapa aberta (1, 2, ...), 'won' ou 'lost'. */
+  const stageOf = (n, key, stage) => {
+    const def = DEFAULT_FUNNELS[FPOS[key] - 1];
+    const spos = stage === 'won' ? def.stages.length + 1 : stage === 'lost' ? def.stages.length + 2 : stage;
+    return stageRows.find((s) => s.id === stid(n, FPOS[key], spos));
+  };
+
+  // Contatos (cadastro único: Pessoa = Contato). Os 15 primeiros já eram Pessoas; os leads de antes viram contatos mais abaixo.
+  // [nome, instagram, email, origem, diasAtrás, temperatura, situação de lead, etiquetas, responsável, observações|null]
   const personRows = [
-    // [nome, instagram, email, origem, diasAtrás]
-    ['Ana Clara Ribeiro', '@anaclara.ribeiro', 'ana.ribeiro@exemplo.com', 'referral', 125],
-    ['Bruno Tavares', '@bruno.tavares', 'bruno.tavares@exemplo.com', 'organic', 118],
-    ['Carolina Lopes', '@carol.lopes', null, 'meta_ads', 110],
-    ['Daniel Moura', null, 'daniel.moura@exemplo.com', 'event', 100],
-    ['Eduarda Siqueira', '@duda.siqueira', 'eduarda.siqueira@exemplo.com', 'referral', 92],
-    ['Felipe Andrade', '@felipe.andrade', null, 'google_ads', 85],
-    ['Giovana Pires', '@gi.pires', 'giovana.pires@exemplo.com', 'organic', 77],
-    ['Heitor Camargo', null, 'heitor.camargo@exemplo.com', 'other', 70],
-    ['Isabela Rocha', '@isa.rocha', 'isabela.rocha@exemplo.com', 'meta_ads', 63],
-    ['João Pedro Salles', '@jp.salles', null, 'event', 55],
-    ['Karina Bastos', '@karina.bastos', 'karina.bastos@exemplo.com', 'referral', 48],
-    ['Leonardo Fiuza', null, 'leonardo.fiuza@exemplo.com', 'organic', 40],
-    ['Marcela Torres', '@marcela.torres', 'marcela.torres@exemplo.com', 'meta_ads', 31],
-    ['Natália Ventura', '@nat.ventura', null, 'referral', 22],
-    ['Otávio Brandão', '@otavio.brandao', 'otavio.brandao@exemplo.com', 'google_ads', 14],
+    ['Ana Clara Ribeiro', '@anaclara.ribeiro', 'ana.ribeiro@exemplo.com', 'referral', 125, 'hot', 'qualified', ['cliente', 'alto ticket'], 'Camila Duarte', 'Cliente da mentoria individual. Indica bastante: pedir depoimento.'],
+    ['Bruno Tavares', '@bruno.tavares', 'bruno.tavares@exemplo.com', 'organic', 118, 'warm', 'qualified', ['cliente', 'curso'], 'Camila Duarte', null],
+    ['Carolina Lopes', '@carol.lopes', null, 'meta_ads', 110, 'hot', 'qualified', ['alto ticket', 'sócia decide'], 'Camila Duarte', null],
+    ['Daniel Moura', null, 'daniel.moura@exemplo.com', 'event', 100, 'warm', 'qualified', ['evento set'], 'Lívia Matos', null],
+    ['Eduarda Siqueira', '@duda.siqueira', 'eduarda.siqueira@exemplo.com', 'referral', 92, 'hot', 'qualified', ['cliente', 'grupo'], 'Camila Duarte', 'Prefere conversar à noite.'],
+    ['Felipe Andrade', '@felipe.andrade', null, 'google_ads', 85, 'cold', 'qualified', ['retomar 2027'], 'Lívia Matos', null],
+    ['Giovana Pires', '@gi.pires', 'giovana.pires@exemplo.com', 'organic', 77, 'warm', 'qualified', ['cliente'], 'Camila Duarte', null],
+    ['Heitor Camargo', null, 'heitor.camargo@exemplo.com', 'other', 70, 'warm', 'contacted', ['mesa'], 'Camila Duarte', null],
+    ['Isabela Rocha', '@isa.rocha', 'isabela.rocha@exemplo.com', 'meta_ads', 63, 'warm', 'qualified', ['aplicação'], 'Lívia Matos', null],
+    ['João Pedro Salles', '@jp.salles', null, 'event', 55, 'cold', 'contacted', ['evento set'], 'Lívia Matos', null],
+    ['Karina Bastos', '@karina.bastos', 'karina.bastos@exemplo.com', 'referral', 48, 'hot', 'qualified', ['indicação'], 'Camila Duarte', 'Indicada pela Ana Clara.'],
+    ['Leonardo Fiuza', null, 'leonardo.fiuza@exemplo.com', 'organic', 40, 'warm', 'contacted', ['conteúdo'], 'Camila Duarte', null],
+    ['Marcela Torres', '@marcela.torres', 'marcela.torres@exemplo.com', 'meta_ads', 31, 'warm', 'contacted', ['aplicação'], 'Lívia Matos', null],
+    ['Natália Ventura', '@nat.ventura', null, 'referral', 22, 'cold', 'contacted', ['conteúdo'], 'Camila Duarte', 'Comentou nos stories sobre posicionamento.'],
+    ['Otávio Brandão', '@otavio.brandao', 'otavio.brandao@exemplo.com', 'google_ads', 14, 'warm', 'new', [], null, null],
   ];
-  const people = personRows.map(([name, instagram, email, source, days], i) => ({
+  const people = personRows.map(([name, instagram, email, source, days, temperature, leadStatus, tags, responsible, notes], i) => ({
     id: eid(i + 1),
     ownerId: owner,
     name,
+    phone: null,
     whatsapp: `5511900000${String(i + 1).padStart(3, '0')}`,
     instagram,
     email,
     source,
+    tags,
+    notes,
+    responsible,
+    temperature,
+    leadStatus,
+    entryFunnelId: null, // o funil da primeira oportunidade, preenchido mais abaixo
     companyId: null, // preenchido logo abaixo, depois de criar as empresas
     createdAt: ago(days * DAY),
     updatedAt: ago(days * DAY),
@@ -369,57 +399,152 @@ export function buildSeed(now) {
     for (const n of members) people[n - 1].companyId = cid(i + 1);
   });
 
-  // [pessoa, produto|null, valor, etapa, temperatura, abertaHáDias, atualizadaHáDias, fechadaHáDias|null, motivoPerda, previsãoEmDias|null, notas|null]
-  const dealRows = [
-    [1, 1, '4800.00', 'won', 'hot', 60, 35, 35, null, null, null],
-    [2, 3, '997.00', 'won', 'warm', 50, 30, 30, null, null, null],
-    [5, 5, '2400.00', 'won', 'hot', 45, 21, 21, null, null, 'Fechou após a segunda reunião com a sócia.'],
-    [7, 2, '1200.00', 'won', 'warm', 30, 9, 9, null, null, null],
-    [3, 1, '4800.00', 'proposal', 'hot', 18, 6, null, null, 5, 'Decisão depende da sócia. Reforçar o case e a condição de pagamento em 3x.'],
-    [9, 5, '2200.00', 'proposal', 'warm', 15, 3, null, null, 12, null],
-    [4, 4, '1500.00', 'talking', 'warm', 12, 4, null, null, -2, 'Pediu um orçamento por turma.'],
-    [10, 6, '350.00', 'talking', 'cold', 10, 5, null, null, null, null],
-    [11, 2, '1200.00', 'talking', 'hot', 8, 1, null, null, 20, null],
-    [13, 3, '997.00', 'arrived', 'warm', 3, 3, null, null, 30, null],
-    [14, null, '3000.00', 'arrived', 'cold', 2, 2, null, null, null, null],
-    [6, 1, '4800.00', 'lost', 'cold', 40, 25, 25, 'Preferiu aguardar o próximo semestre.', null, null],
+  // Leads de antes (nenhum é pessoa real) viram contatos, com a mesma regra da migração 0026: o lead convertido aponta para a Pessoa
+  // que já existia; os demais unem por WhatsApp/e-mail ou viram contato novo, sem duplicar. Empresa e cargo entram nas observações e
+  // a linha do tempo do lead passa a ser a do contato.
+  // [nome, empresa, cargo, e-mail, whatsapp, instagram, origem, situação antiga, temperatura, observações|null, criadoHáDias, pessoa|null, etiquetas, responsável, [[tipo, texto, horasAtrás], ...]]
+  const leadRows = [
+    ['Renata Souza', 'Lumen Marketing', 'Fundadora', 'renata@lumenmkt.com.br', '5511992145580', '@renata.souza', 'organic', 'qualified', 'hot', 'Pediu proposta de posicionamento digital.', 10, null, ['alto ticket'], 'Camila Duarte', [['meeting', 'Diagnóstico de 45 min realizado. Principal dor: agenda cheia e ticket baixo.', 96], ['call', 'Ligação de alinhamento sobre a proposta.', 5]]],
+    ['Patrícia Lima', 'Essenza Consultoria', 'Sócia', 'patricia@essenza.com.br', '5511981234001', null, 'referral', 'contacted', 'hot', null, 8, null, ['indicação', 'alto ticket'], 'Camila Duarte', [['whatsapp', 'Enviei o material de apresentação.', 30]]],
+    ['Beatriz Nogueira', 'Vértice Saúde', 'Diretora clínica', 'beatriz@vertice.med.br', null, '@bia.nogueira', 'event', 'qualified', 'warm', 'Conheceu o trabalho no evento de setembro.', 12, null, ['evento set'], 'Lívia Matos', [['email', 'Proposta enviada por e-mail.', 27]]],
+    ['Carla Menezes', 'Alma & Negócios', null, 'carla@almaenegocios.com', '5511977001002', null, 'meta_ads', 'contacted', 'warm', null, 6, null, ['aplicação'], 'Lívia Matos', [['note', 'Veio de um anúncio; ainda não respondeu à segunda mensagem.', 50]]],
+    ['Carolina Lopes', 'Studio Lopes', 'Fundadora', 'carolina.lopes@exemplo.com', null, '@carol.lopes', 'meta_ads', 'converted', 'hot', null, 25, 3, [], null, [['call', 'Fechamos o escopo da mentoria individual.', 24 * 18]]],
+    ['Débora Castro', 'Casa Lume Arquitetura', 'Arquiteta', 'debora@casalume.arq.br', '5511966003003', '@debora.castro', 'organic', 'new', 'cold', null, 3, null, [], null, []],
+    ['Tatiane Rocha', 'Rocha Odontologia', 'Dentista', 'contato@rochaodonto.com', null, null, 'google_ads', 'new', 'warm', null, 2, null, [], null, []],
+    ['Vanessa Prado', 'Prado Advocacia', 'Advogada', 'vanessa@pradoadv.com.br', '5511955005005', null, 'referral', 'lost', 'cold', 'Decidiu aguardar o próximo semestre.', 30, null, ['retomar 2027'], 'Camila Duarte', [['call', 'Ela prefere retomar no próximo semestre.', 24 * 12]]],
+    ['Isabela Rocha', 'Rocha Studio', 'Designer', 'isabela.rocha@exemplo.com', null, '@isa.rocha', 'meta_ads', 'converted', 'warm', null, 20, 9, [], null, [['meeting', 'Reunião de proposta realizada.', 24 * 7]]],
+    ['Olívia Pacheco', 'Essenza Consultoria', 'Consultora', 'olivia@essenza.com.br', '5511933007007', null, 'referral', 'new', 'hot', 'Indicada pela Patrícia Lima. Quer estruturar o posicionamento antes do lançamento de janeiro.', 1, null, ['indicação'], 'Camila Duarte', []],
+    ['Rafael Gouveia', 'Gouveia Fitness', 'Personal trainer', 'rafael@gouveiafit.com', '5511922008008', '@rafa.gouveia', 'meta_ads', 'contacted', 'cold', null, 14, null, [], 'Lívia Matos', [['whatsapp', 'Mandei a tabela de valores.', 24 * 9]]],
+    ['Sabrina Leite', 'Leite Nutrição', 'Nutricionista', null, '5511911009009', '@sabrina.nutri', 'organic', 'qualified', 'hot', null, 9, null, ['conteúdo'], 'Camila Duarte', [['note', 'Quer começar em novembro.', 20]]],
+    ['Túlio Barreto', 'Barreto Contabilidade', 'Contador', 'tulio@barretocont.com.br', null, null, 'event', 'lost', 'warm', 'Sem orçamento neste trimestre.', 21, null, [], null, []],
+    ['Úrsula Dantas', 'Dantas Moda', 'Estilista', 'ursula@dantasmoda.com', '5511900009999', '@ursula.dantas', 'google_ads', 'new', 'warm', null, 1, null, [], null, []],
   ];
-  const deals = dealRows.map(([p, prod, value, stage, temperature, opened, updated, closed, lostReason, forecast, notes], i) => ({
-    id: did(i + 1),
-    ownerId: owner,
-    personId: eid(p),
-    productId: prod ? pid(prod) : null,
-    value,
-    stage,
-    temperature,
-    lostReason,
-    openedAt: ago(opened * DAY),
-    closedAt: closed == null ? null : ago(closed * DAY),
-    expectedCloseOn: forecast == null ? null : ymd(t + forecast * DAY),
-    notes: notes ?? null,
-    createdAt: ago(opened * DAY),
-    updatedAt: ago(updated * DAY),
-    version: stage === 'arrived' ? 1 : 2,
-  }));
+  const STATUS_PT = { new: 'Novo', contacted: 'Contatado', qualified: 'Qualificado', lost: 'Perdido', converted: 'Convertido' };
+  const LEAD_TO_CONTACT = { new: 'new', contacted: 'contacted', qualified: 'qualified', lost: 'discarded', converted: 'qualified' };
+  const activities = [];
+  let activitySeq = 0;
+  const addActivity = (personId, kind, body, hoursAgo) =>
+    activities.push({ id: aid(++activitySeq), ownerId: owner, personId, kind, body, occurredAt: ago(hoursAgo * HOUR), createdAt: ago(hoursAgo * HOUR) });
+  leadRows.forEach(([name, company, jobTitle, email, whatsapp, instagram, source, status, temperature, notes, age, p, tags, responsible, acts]) => {
+    const merged = [notes, company ? `Empresa: ${company}` : null, jobTitle ? `Cargo: ${jobTitle}` : null].filter(Boolean).join('\n') || null;
+    let person = p ? people[p - 1] : people.find((x) => (whatsapp && x.whatsapp === whatsapp) || (email && x.email === email));
+    if (person) {
+      person.notes ??= merged;
+      person.instagram ??= instagram;
+    } else {
+      const at = ago(age * DAY);
+      person = {
+        id: eid(people.length + 1), ownerId: owner, name, phone: null, whatsapp, instagram, email, source, tags, notes: merged, responsible, temperature,
+        leadStatus: LEAD_TO_CONTACT[status], entryFunnelId: null, companyId: null, createdAt: at, updatedAt: at, version: 1,
+      };
+      people.push(person);
+    }
+    addActivity(person.id, 'status_change', 'Lead criado.', age * 24);
+    if (status !== 'new') addActivity(person.id, 'status_change', `Situação alterada de Novo para ${STATUS_PT[status === 'converted' ? 'qualified' : status]}.`, age * 24 - 6);
+    for (const [kind, text, hours] of acts) addActivity(person.id, kind, text, hours);
+    if (status === 'converted') addActivity(person.id, 'status_change', 'Convertido em oportunidade.', Math.min(age * 24 - 8, 24 * 17));
+  });
+  // Conversas registradas direto nos contatos que já eram Pessoas. [contato, tipo, texto, horasAtrás]
+  const contactActivities = [
+    [1, 'meeting', 'Sessão de fechamento do ciclo: quer renovar por mais 3 meses.', 24 * 5],
+    [3, 'whatsapp', 'Mandei o case da Essenza e a condição em 3x.', 24 * 6],
+    [3, 'call', 'A sócia pediu mais uma semana para decidir.', 30],
+    [4, 'meeting', 'Conversa no intervalo do evento; pediu orçamento por turma.', 24 * 11],
+    [5, 'whatsapp', 'Perguntou sobre a próxima turma do grupo.', 48],
+    [8, 'call', 'Topou participar da próxima mesa.', 24 * 15],
+    [11, 'call', 'Ligação de 20 min: quer começar ainda este mês.', 26],
+    [12, 'note', 'Respondeu o post sobre precificação.', 24 * 19],
+    [13, 'email', 'Recebi a aplicação dela pelo formulário.', 24 * 3],
+    [14, 'whatsapp', 'Respondeu os stories e pediu mais detalhes da mentoria.', 24 * 2],
+  ];
+  for (const [p, kind, body, hours] of contactActivities) addActivity(eid(p), kind, body, hours);
 
-  // Histórico de etapas: o caminho de cada oportunidade até a etapa atual, com as datas espaçadas entre a abertura e a última mudança.
-  const STAGE_PATH = { won: ['talking', 'proposal', 'won'], proposal: ['talking', 'proposal'], talking: ['talking'], lost: ['talking', 'lost'], arrived: [] };
+  // Oportunidades espalhadas pelos funis, para cada quadro parecer real. Natália Ventura fica na primeira etapa de "Conteúdo" (o vídeo
+  // arrasta o cartão dela para a etapa seguinte) e Carolina Lopes na "Proposta" de "Conteúdo".
+  // [contato, produto|null, valor, funil, etapa (aberta 1..n | 'won' | 'lost'), temperatura, abertaHáDias, atualizadaHáDias, fechadaHáDias|null, motivoPerda, previsãoEmDias|null, notas|null, responsável|null]
+  const dealRows = [
+    [1, 1, '4800.00', 'indicacao', 'won', 'hot', 60, 35, 35, null, null, null, 'Camila Duarte'],
+    [2, 3, '997.00', 'conteudo', 'won', 'warm', 50, 30, 30, null, null, null, 'Camila Duarte'],
+    [5, 5, '2400.00', 'indicacao', 'won', 'hot', 45, 21, 21, null, null, 'Fechou após a segunda reunião com a sócia.', 'Camila Duarte'],
+    [7, 2, '1200.00', 'conteudo', 'won', 'warm', 30, 9, 9, null, null, null, 'Camila Duarte'],
+    [3, 1, '4800.00', 'conteudo', 5, 'hot', 18, 6, null, null, 5, 'Decisão depende da sócia. Reforçar o case e a condição de pagamento em 3x.', 'Camila Duarte'],
+    [9, 5, '2200.00', 'aplicacao', 5, 'warm', 15, 3, null, null, 12, null, 'Lívia Matos'],
+    [4, 4, '1500.00', 'evento', 4, 'warm', 12, 4, null, null, -2, 'Pediu um orçamento por turma.', 'Lívia Matos'],
+    [10, 6, '350.00', 'evento', 3, 'cold', 10, 5, null, null, null, null, 'Lívia Matos'],
+    [11, 2, '1200.00', 'indicacao', 3, 'hot', 8, 1, null, null, 20, null, 'Camila Duarte'],
+    [13, 3, '997.00', 'aplicacao', 1, 'warm', 3, 3, null, null, 30, null, 'Lívia Matos'],
+    [14, null, '3000.00', 'conteudo', 1, 'cold', 2, 2, null, null, null, null, 'Camila Duarte'],
+    [6, 1, '4800.00', 'aplicacao', 'lost', 'cold', 40, 25, 25, 'Preferiu aguardar o próximo semestre.', null, null, 'Lívia Matos'],
+    [1, 1, '4800.00', 'renovacao', 1, 'warm', 6, 6, null, null, 25, 'O ciclo de 3 meses termina no fim do mês.', 'Camila Duarte'],
+    [5, 5, '2400.00', 'renovacao', 2, 'hot', 9, 2, null, null, 10, null, 'Camila Duarte'],
+    [16, null, '8500.00', 'conteudo', 3, 'hot', 9, 1, null, null, 15, 'Proposta de posicionamento digital.', 'Camila Duarte'],
+    [25, null, '5400.00', 'conteudo', 4, 'hot', 8, 1, null, null, 21, null, 'Camila Duarte'],
+    [17, null, '15000.00', 'indicacao', 2, 'hot', 7, 1, null, null, 30, null, 'Camila Duarte'],
+    [23, null, '12000.00', 'indicacao', 1, 'hot', 0.5, 0.5, null, null, 60, null, 'Camila Duarte'],
+    [18, null, '4200.00', 'evento', 5, 'warm', 11, 1, null, null, 7, null, 'Lívia Matos'],
+    [19, null, '9800.00', 'aplicacao', 2, 'warm', 5, 2, null, null, null, null, 'Lívia Matos'],
+    [8, 2, '1200.00', 'mesa', 4, 'warm', 14, 4, null, null, 9, null, 'Camila Duarte'],
+    [12, 3, '997.00', 'conteudo', 2, 'warm', 20, 7, null, null, null, null, 'Camila Duarte'],
+    [2, 6, '350.00', 'ascensao', 1, 'warm', 4, 4, null, null, null, 'Cliente do curso: oferecer o diagnóstico.', 'Camila Duarte'],
+  ];
+  const deals = [];
   const dealHistory = [];
-  dealRows.forEach(([, , , stage, , opened, updated, closed], i) => {
-    const path = STAGE_PATH[stage];
+  /** Oportunidade da aluna `n` + histórico (o caminho até a etapa atual, com as datas espaçadas entre a abertura e a última mudança). */
+  const addDeal = (n, ownerId, id, personId, prod, value, key, stage, temperature, opened, updated, closed, lostReason, forecast, notes, responsible) => {
+    const target = stageOf(n, key, stage);
+    const funnelId = fnid(n, FPOS[key]);
+    const lastOpen = DEFAULT_FUNNELS[FPOS[key] - 1].stages.length;
+    // Caminho: as abertas depois da primeira até a atual; a ganha passa por até 3 abertas; a perdida, pela segunda.
+    const opens = target.kind === 'open' ? target.position : target.kind === 'won' ? Math.min(3, lastOpen) : Math.min(2, lastOpen);
+    const path = [];
+    for (let s = 2; s <= opens; s++) path.push(stageOf(n, key, s));
+    if (target.kind !== 'open') path.push(target);
     const lastAgo = closed ?? updated;
+    let from = stageOf(n, key, 1);
     path.forEach((to, step) => {
       const agoDays = path.length === 1 ? lastAgo : lastAgo + ((path.length - 1 - step) * (opened - lastAgo)) / path.length;
       dealHistory.push({
-        id: hid(dealHistory.length + 1),
-        ownerId: owner,
-        dealId: did(i + 1),
-        fromStage: step === 0 ? 'arrived' : path[step - 1],
-        toStage: to,
-        changedAt: ago(Math.round(agoDays * DAY)),
+        id: hid(dealHistory.length + 1), ownerId, dealId: id, fromStage: from.kind, toStage: to.kind, fromStageId: from.id, toStageId: to.id,
+        fromStageName: from.name, toStageName: to.name, changedAt: ago(Math.round(agoDays * DAY)),
       });
+      from = to;
     });
-  });
+    deals.push({
+      id, ownerId, personId, funnelId, stageId: target.id, stage: target.kind, productId: prod ? pid(prod) : null, value, temperature, lostReason, responsible,
+      openedAt: ago(opened * DAY), closedAt: closed == null ? null : ago(closed * DAY), expectedCloseOn: forecast == null ? null : ymd(t + forecast * DAY),
+      notes: notes ?? null, createdAt: ago(opened * DAY), updatedAt: ago(updated * DAY), version: 1 + path.length,
+    });
+  };
+  dealRows.forEach(([p, prod, value, key, stage, temperature, opened, updated, closed, lostReason, forecast, notes, responsible], i) =>
+    addDeal(2, owner, did(i + 1), eid(p), prod, value, key, stage, temperature, opened, updated, closed, lostReason, forecast, notes, responsible));
+
+  // Outras alunas também usam a Central Comercial (dados fictícios e só delas): a mentora vê apenas os números agregados.
+  // [aluna, [[contato, origem, funil, etapa, valor, abertaHáDias, fechadaHáDias|null], ...]]
+  const otherCrm = [
+    [3, [['Paula Vieira', 'referral', 'indicacao', 'won', '6000.00', 40, 12], ['Sônia Ramos', 'event', 'evento', 'won', '3500.00', 25, 8], ['Teresa Lins', 'organic', 'conteudo', 4, '4200.00', 10, null],
+      ['Vera Assis', 'organic', 'conteudo', 2, '2800.00', 6, null], ['Yara Costa', 'meta_ads', 'aplicacao', 3, '5200.00', 9, null], ['Zilda Prates', 'referral', 'indicacao', 'lost', '6000.00', 30, 14],
+      ['Alice Menezes', 'event', 'imersao', 2, '9000.00', 5, null]]],
+    [4, [['Bianca Torres', 'organic', 'conteudo', 1, '1500.00', 4, null], ['Cecília Rocha', 'meta_ads', 'isca', 3, '497.00', 7, null], ['Diana Faria', 'referral', 'indicacao', 'won', '1800.00', 20, 6]]],
+    [5, [['Elisa Moura', 'organic', 'conteudo', 'lost', '2500.00', 35, 18], ['Fabiana Leal', 'referral', 'renovacao', 1, '3000.00', 12, null], ['Gisele Prado', 'event', 'workshop', 2, '900.00', 15, null]]],
+    [7, [['Helena Duarte', 'referral', 'indicacao', 2, '4000.00', 6, null], ['Íris Campos', 'organic', 'grupo_vip', 'won', '1200.00', 18, 4], ['Joana Pires', 'meta_ads', 'desafio', 3, '700.00', 9, null],
+      ['Kátia Nunes', 'organic', 'conteudo', 1, '2000.00', 2, null]]],
+  ];
+  for (const [n, rows] of otherCrm) {
+    rows.forEach(([name, source, key, stage, value, opened, closed], k) => {
+      const personId = eid(n * 1000 + k + 1);
+      const at = ago((opened + 3) * DAY);
+      people.push({
+        id: personId, ownerId: uid(n), name, phone: null, whatsapp: null, instagram: null, email: null, source, tags: [], notes: null, responsible: null, temperature: 'warm',
+        leadStatus: 'qualified', entryFunnelId: fnid(n, FPOS[key]), companyId: null, createdAt: at, updatedAt: at, version: 1,
+      });
+      addDeal(n, uid(n), did(n * 1000 + k + 1), personId, null, value, key, stage, 'warm', opened, closed ?? Math.max(1, opened - 2), closed, stage === 'lost' ? 'Sem orçamento agora.' : null, null, null, null);
+    });
+  }
+  // Funil de entrada: o da primeira oportunidade do contato.
+  for (const person of people) {
+    const first = deals.filter((d) => d.personId === person.id).sort((a, b) => (a.openedAt < b.openedAt ? -1 : 1))[0];
+    if (first) person.entryFunnelId = first.funnelId;
+  }
 
   // Tarefas da aluna demo. As datas são RELATIVAS a hoje, no dia local de quem abre a demonstração (horário do navegador):
   // assim "Hoje", "Atrasadas" e "Próximas" sempre têm exemplos, em qualquer dia em que a demonstração for gerada.
@@ -462,47 +587,6 @@ export function buildSeed(now) {
     updatedAt: doneAgo === null ? ago((Math.abs(dayOffset ?? 3) + 3) * DAY) : ago(doneAgo),
   }));
 
-  // Leads da aluna demo (nenhum é pessoa real). Datas relativas a hoje. Dois já viraram oportunidade (ligados a Pessoas e Oportunidades do exemplo).
-  // [nome, empresa, cargo, e-mail, whatsapp, instagram, origem, situação, temperatura, valor|null, observações|null, criadoHáDias, pessoa|null, oportunidade|null, [[tipo, texto, horasAtrás], ...]]
-  const leadRows = [
-    ['Renata Souza', 'Lumen Marketing', 'Fundadora', 'renata@lumenmkt.com.br', '5511992145580', '@renata.souza', 'organic', 'qualified', 'hot', '8500.00', 'Pediu proposta de posicionamento digital.', 10, null, null, [['meeting', 'Diagnóstico de 45 min realizado. Principal dor: agenda cheia e ticket baixo.', 96], ['call', 'Ligação de alinhamento sobre a proposta.', 5]]],
-    ['Patrícia Lima', 'Essenza Consultoria', 'Sócia', 'patricia@essenza.com.br', '5511981234001', null, 'referral', 'contacted', 'hot', '15000.00', null, 8, null, null, [['whatsapp', 'Enviei o material de apresentação.', 30]]],
-    ['Beatriz Nogueira', 'Vértice Saúde', 'Diretora clínica', 'beatriz@vertice.med.br', null, '@bia.nogueira', 'event', 'qualified', 'warm', '4200.00', 'Conheceu o trabalho no evento de setembro.', 12, null, null, [['email', 'Proposta enviada por e-mail.', 27]]],
-    ['Carla Menezes', 'Alma & Negócios', null, 'carla@almaenegocios.com', '5511977001002', null, 'meta_ads', 'contacted', 'warm', '9800.00', null, 6, null, null, [['note', 'Veio de um anúncio; ainda não respondeu à segunda mensagem.', 50]]],
-    ['Carolina Lopes', 'Studio Lopes', 'Fundadora', 'carolina.lopes@exemplo.com', null, '@carol.lopes', 'meta_ads', 'converted', 'hot', '4800.00', null, 25, 3, 5, [['call', 'Fechamos o escopo da mentoria individual.', 24 * 18]]],
-    ['Débora Castro', 'Casa Lume Arquitetura', 'Arquiteta', 'debora@casalume.arq.br', '5511966003003', '@debora.castro', 'organic', 'new', 'cold', '3600.00', null, 3, null, null, []],
-    ['Tatiane Rocha', 'Rocha Odontologia', 'Dentista', 'contato@rochaodonto.com', null, null, 'google_ads', 'new', 'warm', '6000.00', null, 2, null, null, []],
-    ['Vanessa Prado', 'Prado Advocacia', 'Advogada', 'vanessa@pradoadv.com.br', '5511955005005', null, 'referral', 'lost', 'cold', '7500.00', 'Decidiu aguardar o próximo semestre.', 30, null, null, [['call', 'Ela prefere retomar no próximo semestre.', 24 * 12]]],
-    ['Isabela Rocha', 'Rocha Studio', 'Designer', 'isabela.rocha@exemplo.com', null, '@isa.rocha', 'meta_ads', 'converted', 'warm', '2200.00', null, 20, 9, 6, [['meeting', 'Reunião de proposta realizada.', 24 * 7]]],
-    ['Olívia Pacheco', 'Essenza Consultoria', 'Consultora', 'olivia@essenza.com.br', '5511933007007', null, 'referral', 'new', 'hot', '12000.00', 'Indicada pela Patrícia Lima. Quer estruturar o posicionamento antes do lançamento de janeiro.', 1, null, null, []],
-    ['Rafael Gouveia', 'Gouveia Fitness', 'Personal trainer', 'rafael@gouveiafit.com', '5511922008008', '@rafa.gouveia', 'meta_ads', 'contacted', 'cold', null, null, 14, null, null, [['whatsapp', 'Mandei a tabela de valores.', 24 * 9]]],
-    ['Sabrina Leite', 'Leite Nutrição', 'Nutricionista', null, '5511911009009', '@sabrina.nutri', 'organic', 'qualified', 'hot', '5400.00', null, 9, null, null, [['note', 'Quer começar em novembro.', 20]]],
-    ['Túlio Barreto', 'Barreto Contabilidade', 'Contador', 'tulio@barretocont.com.br', null, null, 'event', 'lost', 'warm', '2800.00', 'Sem orçamento neste trimestre.', 21, null, null, []],
-    ['Úrsula Dantas', 'Dantas Moda', 'Estilista', 'ursula@dantasmoda.com', '5511900009999', '@ursula.dantas', 'google_ads', 'new', 'warm', null, null, 1, null, null, []],
-  ];
-  const STATUS_PT = { new: 'Novo', contacted: 'Contatado', qualified: 'Qualificado', lost: 'Perdido', converted: 'Convertido' };
-  const leads = [];
-  const leadActivities = [];
-  let activitySeq = 0;
-  leadRows.forEach(([name, company, jobTitle, email, whatsapp, instagram, source, status, temperature, value, notes, age, p, d, acts], i) => {
-    const id = lid(i + 1);
-    const addAct = (kind, body, hoursAgo) =>
-      leadActivities.push({ id: aid(++activitySeq), ownerId: owner, leadId: id, kind, body, occurredAt: ago(hoursAgo * HOUR), createdAt: ago(hoursAgo * HOUR) });
-    addAct('status_change', 'Lead criado.', age * 24);
-    if (status !== 'new') addAct('status_change', `Situação alterada de Novo para ${STATUS_PT[status === 'converted' ? 'qualified' : status]}.`, age * 24 - 6);
-    for (const [kind, text, hours] of acts) addAct(kind, text, hours);
-    if (status === 'converted') addAct('status_change', 'Convertido em oportunidade.', Math.min(age * 24 - 8, 24 * 17));
-    const last = Math.min(...leadActivities.filter((a) => a.leadId === id).map((a) => (t - Date.parse(a.occurredAt)) / HOUR));
-    leads.push({
-      id, ownerId: owner, name, company, jobTitle, email, whatsapp, instagram, source, status, temperature,
-      estimatedValue: value, notes, lastActivityAt: ago(last * HOUR),
-      convertedAt: status === 'converted' ? ago(Math.min(age * 24 - 8, 24 * 17) * HOUR) : null,
-      convertedPersonId: p ? eid(p) : null, convertedDealId: d ? did(d) : null,
-      version: 1, createdAt: ago(age * DAY), updatedAt: ago(last * HOUR),
-    });
-  });
-
-  // pipelineConfig: por aluna (id -> etapas); vazio = vale o padrão (Chegaram 10, Em conversa 30, Proposta 60, Ganhas 100, Perdidas 0).
   // Perfil e Configurações: preferências por conta (vazio = padrões), outras sessões FICTÍCIAS das duas contas de demonstração
   // (a sessão atual é montada na hora, a partir do navegador de quem está vendo), origens de lead por aluna (vazio = as 6 padrão)
   // e as configurações da mentoria (uma só, singleton).
@@ -530,7 +614,7 @@ export function buildSeed(now) {
       userId: uid(2),
       kind: 'welcome',
       title: 'Boas-vindas ao Indiscutível Hub',
-      body: 'Comece pelo Painel: ele mostra o que pede atenção hoje. Cadastre Pessoas e Leads para montar o seu funil.',
+      body: 'Comece pelo Painel: ele mostra o que pede atenção hoje. Cadastre os seus contatos na Central Comercial para montar o seu funil.',
       link: '#/',
       dedupeKey: 'welcome',
       createdAt: ago(3 * DAY),
@@ -556,8 +640,9 @@ export function buildSeed(now) {
   const xpEvents = [];
   const addXp = (kind, dedupeKey, occurredAt, points = POINTS[kind]) => xpEvents.push({ id: xid(xpEvents.length + 1), ownerId: owner, kind, points, dedupeKey, occurredAt });
   for (const task of tasks) if (task.status === 'done') addXp('task_done', `task:${task.id}`, task.doneAt);
-  for (const deal of deals) if (deal.stage === 'won') addXp('deal_won', `deal-won:${deal.id}`, deal.closedAt);
-  for (const lead of leads) if (lead.status === 'converted') addXp('lead_converted', `lead-converted:${lead.id}`, lead.convertedAt);
+  for (const deal of deals) if (deal.ownerId === owner && deal.stage === 'won') addXp('deal_won', `deal-won:${deal.id}`, deal.closedAt);
+  // Os dois leads convertidos antes da Central Comercial (Carolina Lopes e Isabela Rocha) mantêm a chave antiga `lead-converted:<lead>`.
+  for (const n of [5, 9]) addXp('lead_converted', `lead-converted:${lid(n)}`, ago(24 * 17 * HOUR));
   // Eventos de rotina dos meses anteriores ([dias atrás, tipo]); pontos que permanecem mesmo que o registro original já tenha sido excluído.
   const FILLERS = [
     [150, 'deal_won'], [146, 'task_done'], [141, 'person_created'], [136, 'task_done'], [131, 'lead_activity'],
@@ -576,7 +661,7 @@ export function buildSeed(now) {
   };
   // [meses atrás, métrica, alvo]: 3 metas do mês corrente e o histórico de faturamento dos 5 meses anteriores.
   const goalRows = [
-    [0, 'revenue', '10000.00'], [0, 'tasks_done', '12'], [0, 'new_leads', '20'], // acima dos 14 leads do exemplo: nenhuma meta do mês nasce atingida, qualquer que seja o dia
+    [0, 'revenue', '10000.00'], [0, 'tasks_done', '12'], [0, 'new_leads', '20'], // acima dos contatos novos do exemplo (no máximo 11 no mês): nenhuma meta do mês nasce atingida
     [1, 'revenue', '8000.00'], [2, 'revenue', '6000.00'], [3, 'revenue', '6000.00'], [4, 'revenue', '5000.00'], [5, 'revenue', '4000.00'],
   ];
   const goals = goalRows.map(([back, metric, target], i) => ({
@@ -586,11 +671,15 @@ export function buildSeed(now) {
   // Metas de faturamento de meses já fechados e atingidas pelas vendas do exemplo: o +100 XP já foi concedido.
   for (const goal of goals) {
     if (goal.metric !== 'revenue' || goal.month >= monthOf(t)) continue;
-    const won = deals.filter((d) => d.stage === 'won' && monthOf(Date.parse(d.closedAt)) === goal.month).reduce((n, d) => n + Math.round(Number(d.value) * 100), 0);
+    const won = deals.filter((d) => d.ownerId === owner && d.stage === 'won' && monthOf(Date.parse(d.closedAt)) === goal.month).reduce((n, d) => n + Math.round(Number(d.value) * 100), 0);
     if (won >= Math.round(Number(goal.target) * 100)) addXp('goal_reached', `goal:${goal.metric}:${goal.month}`, new Date(Date.UTC(Number(goal.month.slice(0, 4)), Number(goal.month.slice(5, 7)), 1, 11)).toISOString());
   }
 
   const growth = buildGrowthSeed({ now, owner, users, addXp });
+  // Financeiro: vendas das oportunidades ganhas, vendas avulsas, parcelas, pagamentos, um estorno, uma renegociação e um cancelamento.
+  const finance = buildFinanceSeed({ now, uid, eid, did, pid });
+  // Marketing: campanhas, investimentos, Instagram e a campanha dos contatos e oportunidades que já existem.
+  const marketing = buildMarketingSeed({ now, uid, people, deals, did });
 
   // Ranking "Evolução da comunidade": 9 alunas ativas (5 da Turma Aurora, 4 da Horizonte) já optaram por participar, com XP do mês variado e
   // níveis diferentes. A aluna demo NÃO participa até ligar a opção (padrão desligado, como no sistema). O XP do mês fica entre o
@@ -751,5 +840,5 @@ export function buildSeed(now) {
     { userId: uid(91), roleId: roleReadonly },
   ];
 
-  return { schema: SCHEMA_VERSION, seededAt: now.toISOString(), users, invites, notifications, products, people, companies, deals, dealHistory, pipelineConfig: {}, tasks, leads, leadActivities, xpEvents, goals, preferences, otherSessions, leadSources: {}, mentoria, mentoriaNotes, mentoringSessions, followupPlans, mentoriaCheckins, teamRoles, teamMembers, ...growth };
+  return { schema: SCHEMA_VERSION, seededAt: now.toISOString(), users, invites, notifications, products, people, companies, funnels: funnelRows, funnelStages: stageRows, deals, dealHistory, tasks, activities, xpEvents, goals, preferences, otherSessions, leadSources: {}, mentoria, mentoriaNotes, mentoringSessions, followupPlans, mentoriaCheckins, teamRoles, teamMembers, ...finance, ...marketing, ...growth };
 }

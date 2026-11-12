@@ -56,7 +56,7 @@ export const TZ_OFFSETS = Object.freeze({ 'America/Sao_Paulo': 180, 'America/Man
 
 export const HOME_OPTIONS = [
   { value: 'dashboard', label: 'Painel' },
-  { value: 'deals', label: 'Oportunidades' },
+  { value: 'deals', label: 'Pipeline comercial' },
 ];
 
 /** Avisos que o perfil oferece. `roles` limita a quem faz sentido (mentora não tem tarefas nem "avisos da mentora"). */

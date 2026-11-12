@@ -3,6 +3,7 @@ import { nameError } from '../lib/validators.js';
 import { formatMoney, moneyToInputText, parseMoney } from '../../shared/money.js';
 import { icon } from '../ih-icons.js';
 import { renderShell } from '../shell.js';
+import { COMMERCIAL_EYEBROW, commercialTabs } from '../ui/commercial-tabs.js';
 import { badge, button, emptyState, field, searchField, selectField } from '../ui/components.js';
 import { confirmDialog } from '../ui/dialog.js';
 import { createListView } from '../ui/list-view.js';
@@ -75,15 +76,15 @@ function emptyProducts(state) {
 }
 
 export function renderProducts({ root, session, api, navigate }) {
-  const content = html`<div class="toolbar">
+  const content = html`${commercialTabs('products')}<div class="toolbar">
       <div class="toolbar-search">${searchField({ id: 'products-search', label: 'Buscar produto', placeholder: 'Buscar por nome…' })}</div>
       <div class="toolbar-actions">${selectField({ id: 'products-show', label: 'Mostrar', name: 'show', value: DEFAULT_FILTERS.archived, options: SHOW_OPTIONS })}</div>
     </div>
     <div id="list-region" aria-live="off"></div>`;
 
-  const disposeShell = renderShell({ root, session, navigate, active: 'products',
+  const disposeShell = renderShell({ root, session, navigate, active: 'commercial',
     heading: 'Produtos',
-    eyebrow: 'Catálogo',
+    eyebrow: COMMERCIAL_EYEBROW,
     subtitle: 'Tudo o que você vende, com preço e situação.',
     actions: button({ label: 'Novo produto', id: 'new-product', iconStart: icon('plus') }),
     content,

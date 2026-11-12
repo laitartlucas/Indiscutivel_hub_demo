@@ -9,6 +9,8 @@ export const PERMISSION_KEYS = [
   'sessions.manage',
   'followup.view',
   'followup.manage',
+  // "Indicadores de negócio das alunas": só números agregados da Central Comercial (nunca nomes ou contatos).
+  'business.view',
   'reports.view',
   'challenges.manage',
   'achievements.manage',

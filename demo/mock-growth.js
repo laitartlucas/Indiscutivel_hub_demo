@@ -66,7 +66,8 @@ export function createGrowthDemo(d) {
       deals_won_count: won.length,
       revenue_won_total: won.reduce((n, x) => n + Math.round(Number(x.value) * 100), 0) / 100,
       tasks_done_count: mineOf(db().tasks, u).filter((x) => x.status === 'done').length,
-      leads_converted_count: mineOf(db().leads, u).filter((x) => x.status === 'converted').length,
+      // Conversão = contato com ao menos uma oportunidade (contatos distintos, como o servidor).
+      leads_converted_count: new Set(mineOf(db().deals, u).map((x) => x.personId)).size,
       people_count: mineOf(db().people, u).length,
       streak_days: longestStreak(xp.map((e) => dayOf(e.occurredAt))),
       goals_reached_count: xp.filter((e) => e.kind === 'goal_reached').length,
@@ -78,7 +79,8 @@ export function createGrowthDemo(d) {
   function countEvents(u, kind, start, end) {
     const inside = (iso) => iso != null && Date.parse(iso) >= start && Date.parse(iso) < end;
     if (kind === 'auto_task_done_count') return mineOf(db().tasks, u).filter((x) => x.status === 'done' && inside(x.doneAt)).length;
-    if (kind === 'auto_lead_created') return mineOf(db().leads, u).filter((x) => inside(x.createdAt)).length;
+    // Desde a Central Comercial todo lead é um contato: "leads criados" = contatos cadastrados no período.
+    if (kind === 'auto_lead_created') return mineOf(db().people, u).filter((x) => inside(x.createdAt)).length;
     if (kind === 'auto_deal_won') return mineOf(db().deals, u).filter((x) => x.stage === 'won' && inside(x.closedAt)).length;
     return mineOf(db().people, u).filter((x) => inside(x.createdAt)).length;
   }
@@ -755,7 +757,7 @@ export function createGrowthDemo(d) {
     ['DELETE', new RegExp(`^mentora/challenges/${SEG}$`), (m) => mentoraRemoveChallenge(m[1])],
   ];
 
-  const WATCHED = /^(tasks|deals|leads|people|goals)(\/|$)/;
+  const WATCHED = /^(tasks|deals|people|goals)(\/|$)/;
   const MUTATING = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 
   /** Como o gancho do servidor: depois de uma ação do CRM da aluna, avalia e acrescenta o campo `growth` à resposta. */

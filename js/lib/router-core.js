@@ -40,15 +40,35 @@ const ROUTES = [
   { pattern: '/equipe', view: 'team', access: 'admin' },
   { pattern: '/equipe/permissoes', view: 'permissions', access: 'admin' },
   { pattern: '/produtos', view: 'products', access: 'user' },
-  { pattern: '/pessoas', view: 'people', access: 'user' },
-  { pattern: '/oportunidades', view: 'deals', access: 'user' },
-  { pattern: '/oportunidades/:id', view: 'dealDetail', access: 'user' },
-  { pattern: '/empresas', view: 'companies', access: 'user' },
-  { pattern: '/empresas/:id', view: 'companyDetail', access: 'user' },
+  // Central Comercial (aluna): visão geral, contatos, pipeline por funil, oportunidade e atividades.
+  { pattern: '/comercial', view: 'commercialOverview', access: 'user' },
+  { pattern: '/comercial/contatos', view: 'contacts', access: 'user' },
+  { pattern: '/comercial/contatos/:id', view: 'contactDetail', access: 'user' },
+  { pattern: '/comercial/pipeline', view: 'pipeline', access: 'user' },
+  { pattern: '/comercial/pipeline/:key', view: 'pipeline', access: 'user' },
+  { pattern: '/comercial/oportunidades/:id', view: 'opportunityDetail', access: 'user' },
+  { pattern: '/comercial/atividades', view: 'activities', access: 'user' },
+  // Financeiro (Entrega 3): vendas, detalhe da venda e parcelas a receber.
+  { pattern: '/comercial/vendas', view: 'sales', access: 'user' },
+  { pattern: '/comercial/vendas/:id', view: 'saleDetail', access: 'user' },
+  { pattern: '/comercial/receber', view: 'receivables', access: 'user' },
+  // Marketing (Entrega 4): visão geral, campanhas, investimentos e Instagram (lançamento manual).
+  { pattern: '/marketing', view: 'marketingOverview', access: 'user' },
+  { pattern: '/marketing/campanhas', view: 'campaigns', access: 'user' },
+  { pattern: '/marketing/campanhas/:id', view: 'campaignDetail', access: 'user' },
+  { pattern: '/marketing/investimentos', view: 'marketingSpend', access: 'user' },
+  { pattern: '/marketing/instagram', view: 'instagram', access: 'user' },
+  // Endereços antigos (antes da Central Comercial): levam à tela nova. `to` aceita os mesmos `:nome` do padrão; a
+  // busca (?q=...) do endereço antigo é mantida (links da busca global e notificações antigas continuam valendo).
+  { pattern: '/pessoas', to: '/comercial/contatos', access: 'user' },
+  { pattern: '/leads', to: '/comercial/contatos', access: 'user' },
+  { pattern: '/leads/:id', to: '/comercial/contatos', access: 'user' },
+  { pattern: '/clientes', to: '/comercial/contatos?status=client', access: 'user' },
+  { pattern: '/oportunidades', to: '/comercial/pipeline', access: 'user' },
+  { pattern: '/oportunidades/:id', to: '/comercial/oportunidades/:id', access: 'user' },
+  { pattern: '/empresas', to: '/comercial/contatos', access: 'user' },
+  { pattern: '/empresas/:id', to: '/comercial/contatos', access: 'user' },
   { pattern: '/configuracoes', view: 'settings', access: 'user' },
-  { pattern: '/clientes', view: 'clients', access: 'user' },
-  { pattern: '/leads', view: 'leads', access: 'user' },
-  { pattern: '/leads/:id', view: 'leadDetail', access: 'user' },
   { pattern: '/tarefas', view: 'tasks', access: 'user' },
   { pattern: '/calendario', view: 'calendar', access: 'user' },
   { pattern: '/metas', view: 'goals', access: 'user' },
@@ -142,6 +162,28 @@ export function matchRoute(path) {
 
 const viewOf = (match) => ({ view: match.view, params: match.params });
 
+/** '/comercial/oportunidades/:id' + { id: 'x y' } -> '/comercial/oportunidades/x%20y'. */
+function fillPattern(pattern, params) {
+  return pattern.replace(/:([a-z]+)/gi, (_, name) => encodeURIComponent(params?.[name] ?? ''));
+}
+
+/**
+ * Destino final de um redirecionamento que preserva a busca do endereço antigo: '/comercial/contatos' + 'q=Ana'
+ * -> '/comercial/contatos?q=Ana'; se o destino já tem query, junta as duas (a do destino vale em caso de repetição).
+ */
+export function redirectTarget(route, hash) {
+  if (!route?.redirect) return null;
+  if (!route.keepQuery) return route.redirect;
+  const at = String(hash ?? '').indexOf('?');
+  const query = at === -1 ? '' : String(hash).slice(at + 1).split('#')[0];
+  if (!query) return route.redirect;
+  const [path, own = ''] = route.redirect.split('?');
+  const merged = new URLSearchParams(query);
+  for (const [key, value] of new URLSearchParams(own)) merged.set(key, value);
+  const text = merged.toString();
+  return text ? `${path}?${text}` : path;
+}
+
 export function resolveRoute(path, session) {
   if (session?.status === 'loading') return { view: 'loading' };
 
@@ -170,6 +212,7 @@ export function resolveRoute(path, session) {
   if (session.justActivated === true && user.role === 'user' && matches.some((m) => m.view === 'activate')) return { redirect: '/acesso-ativado' };
   if (matches.some((m) => m.view === 'activated') && session.justActivated !== true) return { redirect: '/' };
   const own = matches.find((m) => allows(m, user));
+  if (own?.to) return { redirect: fillPattern(own.to, own.params), keepQuery: true };
   if (own) return viewOf(own);
   // Equipe sem permissão para uma tela de mentoria (digitou o endereço, ou perdeu a permissão): Painel, com aviso.
   if (user.role === 'staff' && matches.some(isMentoriaArea)) return { redirect: '/', denied: true };

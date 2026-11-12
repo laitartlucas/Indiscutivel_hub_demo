@@ -98,6 +98,8 @@ export function buildGrowthSeed({ now, owner, users, addXp }) {
   unlock(me, 'streak-7', 13);
   unlock(me, 'level-5', 12);
   unlock(me, 'challenge-1', 15);
+  unlock(me, 'funnel-alive', 9); // 10 contatos com oportunidade (conversões) já no exemplo
+  unlock(me, 'network-25', 2); // 25 contatos na Central Comercial (os leads de antes viraram contatos)
   others.slice(0, 7).forEach((s, k) => unlock(s, 'first-sale', 120 - k * 9));
   [0, 1, 2].forEach((i) => unlock(others[i], 'goal-1', 60 - i * 5));
   unlock(others[0], 'streak-7', 33);

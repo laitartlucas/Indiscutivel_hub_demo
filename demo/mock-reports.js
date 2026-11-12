@@ -1,7 +1,7 @@
 // Ranking ("Evolução da comunidade") e Relatórios da demonstração: as mesmas regras e formatos do servidor
 // (server/src/repositories/ranking.ts + função SQL ranking_month, server/src/repositories/reports.ts) sobre o estado em memória.
 // Recebe do mock principal só o que precisa (banco, relógio, validação de consulta, helpers de dinheiro e metas).
-import { advancePct, conversionRate, displayName, initialsOfShown, levelNumberFor, localDate, onTimeRate, pathRank, PATH, PERIODS, planPeriod, shiftMonth, dayStart } from './reports-data.js';
+import { advancePct, conversionRate, displayName, initialsOfShown, levelNumberFor, localDate, onTimeRate, PATH, PATH_LABELS, PERIODS, planPeriod, shiftMonth, dayStart } from './reports-data.js';
 
 const RANKING_LIMIT = 20;
 const DAY = 86_400_000;
@@ -74,14 +74,21 @@ export function createReportsDemo(d) {
     return { won: won.length, lost: closed.length - won.length, cents: won.reduce((n, x) => n + d.toCents(x.value), 0) };
   }
 
-  const leadsIn = (u, w) => mine(db().leads, u).filter((l) => inside(l.createdAt, w.start, w.end));
+  // Desde a Central Comercial todo lead é um contato: "novos leads" = contatos cadastrados no período.
+  const leadsIn = (u, w) => mine(db().people, u).filter((l) => inside(l.createdAt, w.start, w.end));
 
-  /** Das oportunidades criadas no período, quantas chegaram pelo menos a cada etapa do caminho (etapa atual + histórico real). */
+  /**
+   * Das oportunidades CRIADAS no período (em qualquer funil), quantas AVANÇARAM de etapa (saíram da etapa de entrada para outra aberta
+   * ou para a ganha, pelo histórico real ou pela etapa atual) e quantas foram GANHAS. Perder não é avanço.
+   */
   function funnel(u, w) {
     const cohort = mine(db().deals, u).filter((x) => inside(x.createdAt, w.start, w.end));
     const ranks = cohort.map((x) => {
-      const history = db().dealHistory.filter((h) => h.dealId === x.id).map((h) => pathRank(h.toStage));
-      return Math.max(pathRank(x.stage), ...history, 0);
+      if (x.stage === 'won') return 2;
+      if (db().dealHistory.some((h) => h.dealId === x.id && h.toStage !== 'lost')) return 1;
+      const stage = db().funnelStages.find((s) => s.id === x.stageId);
+      const firstOpen = Math.min(...db().funnelStages.filter((s) => s.funnelId === x.funnelId && s.kind === 'open').map((s) => s.position));
+      return stage?.kind === 'open' && stage.position > firstOpen ? 1 : 0;
     });
     return { cohort: cohort.length, counts: PATH.map((_, level) => ranks.filter((r) => r >= level).length) };
   }
@@ -104,7 +111,6 @@ export function createReportsDemo(d) {
     const curLeads = leadsIn(u, plan.current);
     const prevLeads = leadsIn(u, plan.previous);
     const flow = funnel(u, plan.current);
-    const labels = d.stageLabels(u);
     const tasks = taskStats(u, plan.current);
     const names = new Map(d.effectiveSources(u).map((s) => [s.key, s.label]));
     const bySource = new Map();
@@ -140,7 +146,7 @@ export function createReportsDemo(d) {
         buckets,
         funnel: {
           cohort: flow.cohort,
-          stages: PATH.map((key, i) => ({ key, label: labels.get(key) ?? key, count: flow.counts[i], advancePct: i === 0 ? null : advancePct(flow.counts[i - 1], flow.counts[i]) })),
+          stages: PATH.map((key, i) => ({ key, label: PATH_LABELS[key], count: flow.counts[i], advancePct: i === 0 ? null : advancePct(flow.counts[i - 1], flow.counts[i]) })),
         },
         sources: [...bySource.entries()]
           .map(([key, count]) => ({ key, label: names.get(key) ?? key, count }))

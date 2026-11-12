@@ -58,3 +58,16 @@ export function createRowLock() {
     }
   };
 }
+
+/**
+ * Lista paginada no formato que as telas usam: `{ data, page: { limit, offset, total } }`. Aceita o formato do
+ * contrato da Central Comercial (`{ rows, total }`) e o formato antigo das outras listas (`{ data, page }`).
+ */
+export function normalizePage(result, { limit = 20, offset = 0 } = {}) {
+  if (result && Array.isArray(result.rows)) {
+    return { data: result.rows, page: { limit, offset, total: Number.isInteger(result.total) ? result.total : result.rows.length } };
+  }
+  if (result && Array.isArray(result.data) && result.page) return result;
+  if (Array.isArray(result)) return { data: result, page: { limit, offset, total: result.length } };
+  return { data: [], page: { limit, offset, total: 0 } };
+}

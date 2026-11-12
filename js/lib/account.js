@@ -26,9 +26,9 @@ export function getPreferences() {
   return state.preferences;
 }
 
-/** Rota inicial da pessoa: "/oportunidades" se ela escolheu Oportunidades, senão o Painel. */
+/** Rota inicial da pessoa: o Pipeline da Central Comercial se ela o escolheu (preferência 'deals'), senão o Painel. */
 export function homePath() {
-  return state.preferences?.homePage === 'deals' ? '/oportunidades' : '/';
+  return state.preferences?.homePage === 'deals' ? '/comercial/pipeline' : '/';
 }
 
 export function setAvatarUrl(url) {

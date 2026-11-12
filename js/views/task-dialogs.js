@@ -13,7 +13,7 @@ const PICKER_ID = 'task-person-search';
 
 /** Vínculo com Pessoa: o texto digitado precisa virar uma escolha da lista (senão o vínculo sumiria sem aviso). */
 function personLinkError(value, all) {
-  return !value && (all.personSearch ?? '').trim() !== '' ? 'Escolha uma pessoa da lista de sugestões ou apague o texto.' : null;
+  return !value && (all.personSearch ?? '').trim() !== '' ? 'Escolha um contato da lista de sugestões ou apague o texto.' : null;
 }
 
 function taskDialogBody(existing, preset) {
@@ -28,7 +28,7 @@ function taskDialogBody(existing, preset) {
       ${field({ id: 'task-due-date', label: 'Data', name: 'dueDate', type: 'date', value: due.date })}
       ${field({ id: 'task-due-time', label: 'Hora', name: 'dueTime', type: 'time', value: due.time, hint: 'Sem hora, vale o dia inteiro.' })}
     </div>
-    ${personPickerField({ inputId: PICKER_ID, label: 'Pessoa (opcional)', required: false, value: person, searchName: 'personSearch', hint: 'Digite ao menos 2 letras para buscar.' })}
+    ${personPickerField({ inputId: PICKER_ID, label: 'Contato (opcional)', required: false, value: person, searchName: 'personSearch', hint: 'Digite ao menos 2 letras para buscar.' })}
     <div class="field">
       <label class="field-label" for="task-notes">Anotações (opcional)</label>
       <div class="field-control"><textarea id="task-notes" name="notes" class="field-input" rows="3" maxlength="1000" aria-describedby="task-notes-error">${existing?.notes ?? ''}</textarea></div>

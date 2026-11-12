@@ -4,11 +4,11 @@ import { firstName } from '../lib/invite-errors.js';
 import { icon } from '../ih-icons.js';
 import { authScreen } from '../ui/components.js';
 
-// Passos que existem de verdade no sistema (Produtos, Pessoas, Oportunidades), cada um leva à tela.
+// Passos que existem de verdade no sistema (Produtos, Contatos, Pipeline), cada um leva à tela.
 const STEPS = [
   { href: '#/produtos', title: 'Cadastre um produto', text: 'O que você vende, com o preço, para usar nas oportunidades.' },
-  { href: '#/pessoas', title: 'Cadastre uma pessoa', text: 'Comece por quem já está em conversa com você.' },
-  { href: '#/oportunidades', title: 'Crie a primeira oportunidade', text: 'Acompanhe cada negociação do primeiro contato ao fechamento.' },
+  { href: '#/comercial/contatos', title: 'Cadastre um contato', text: 'Comece por quem já está em conversa com você.' },
+  { href: '#/comercial/pipeline', title: 'Crie a primeira oportunidade', text: 'Escolha o funil e acompanhe cada negociação até o fechamento.' },
 ];
 
 /** Depois de ativar a conta pelo convite (ver `justActivated` em router-core). Sem metas nem desafios: só o que o sistema tem. */

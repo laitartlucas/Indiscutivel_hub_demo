@@ -17,16 +17,17 @@ export function recentQuery() {
 }
 
 /**
- * Um fetcher por peça (total de Produtos, total de Pessoas, recentes de Produtos, recentes de Pessoas,
- * resumo de Oportunidades). `loadDashboard` os usa para a carga inicial em paralelo; a tela (`home.js`)
- * reusa o mesmo fetcher sozinho para tentar de novo só a peça que falhou, sem tocar nas outras.
+ * Um fetcher por peça (total de Produtos, contagem de Contatos, recentes de Produtos, recentes de Contatos,
+ * resumo das oportunidades e visão por funil). `loadDashboard` os usa para a carga inicial em paralelo; a tela
+ * (`home.js`) reusa o mesmo fetcher sozinho para tentar de novo só a peça que falhou, sem tocar nas outras.
  */
 export function loadProductsTotal(api) {
   return api.get(`/api/v1/products${totalsQuery()}`);
 }
 
+/** Contagem de contatos por situação (GET /people/counts): { total, lead, negotiating, client, lost }. */
 export function loadPeopleTotal(api) {
-  return api.get(`/api/v1/people${totalsQuery()}`);
+  return api.get('/api/v1/people/counts');
 }
 
 export function loadProductsRecent(api) {
@@ -37,8 +38,14 @@ export function loadPeopleRecent(api) {
   return api.get(`/api/v1/people${recentQuery()}`);
 }
 
+/** Resumo de todos os funis (sem `funnelId`): em negociação, ganho, perdido, conversão e as que esperam contato. */
 export function loadDealsSummary(api) {
   return api.get('/api/v1/deals/summary');
+}
+
+/** Visão do mês por funil (GET /commercial/overview?period=month), para o cartão "Funis em andamento". */
+export function loadCommercialOverview(api) {
+  return api.get('/api/v1/commercial/overview?period=month');
 }
 
 /** Embrulha uma promessa em `{status:'ok', value}` ou `{status:'error', error}` (nunca rejeita). */
@@ -51,25 +58,36 @@ export function pack(promise) {
 
 /**
  * Busca tudo em paralelo. Cada chamada falha de forma independente: uma rejeição não derruba as outras
- * (cada uma é embrulhada por `pack`). Retorna sempre os 5 campos, cada um `{status:'ok', value}` ou
- * `{status:'error', error}`.
+ * (cada uma é embrulhada por `pack`). Cada campo vem `{status:'ok', value}` ou `{status:'error', error}`.
  */
 export async function loadDashboard(api) {
-  const [productsTotal, peopleTotal, productsRecent, peopleRecent, dealsSummary] = await Promise.all([
+  const [productsTotal, peopleTotal, productsRecent, peopleRecent, dealsSummary, overview] = await Promise.all([
     pack(loadProductsTotal(api)),
     pack(loadPeopleTotal(api)),
     pack(loadProductsRecent(api)),
     pack(loadPeopleRecent(api)),
     pack(loadDealsSummary(api)),
+    pack(loadCommercialOverview(api)),
   ]);
-  return { productsTotal, peopleTotal, productsRecent, peopleRecent, dealsSummary };
+  return { productsTotal, peopleTotal, productsRecent, peopleRecent, dealsSummary, overview };
+}
+
+/** Total de uma lista, venha no formato `{ total }` (Central Comercial) ou `{ page: { total } }` (demais listas). */
+export function listTotal(value) {
+  if (Number.isInteger(value?.total)) return value.total;
+  if (Number.isInteger(value?.page?.total)) return value.page.total;
+  return 0;
+}
+
+/** Linhas de uma lista, venham em `rows` (Central Comercial) ou `data` (demais listas). */
+export function listRows(value) {
+  if (Array.isArray(value?.rows)) return value.rows;
+  return Array.isArray(value?.data) ? value.data : [];
 }
 
 // ---------- cálculos sobre o resumo de Oportunidades (GET /api/v1/deals/summary) ----------
 
 const TZ = 'America/Sao_Paulo';
-const OPEN_STAGES = ['arrived', 'talking', 'proposal'];
-const FUNNEL_STAGES = ['arrived', 'talking', 'proposal', 'won'];
 const DAY_MS = 86_400_000;
 
 const hourFormat = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: 'numeric', hourCycle: 'h23' });
@@ -105,31 +123,39 @@ export function eyebrowDate(date = new Date()) {
   return `${parts.weekday} · ${parts.day} de ${parts.month}`;
 }
 
-/** Oportunidades em aberto (chegaram + em conversa + proposta): quantidade, valor somado e quantas já passaram de "chegaram". */
+/** Oportunidades em negociação (todas as etapas abertas de todos os funis): quantidade, valor e valor ponderado. */
 export function openTotals(summary) {
-  const stages = OPEN_STAGES.map((stage) => summary.stages[stage]);
-  return {
-    count: stages.reduce((n, s) => n + s.count, 0),
-    total: fromCents(stages.reduce((n, s) => n + toCents(s.total), 0)),
-    talking: summary.stages.talking.count + summary.stages.proposal.count,
-  };
+  const open = summary?.open ?? {};
+  return { count: Number(open.count ?? 0), total: open.total ?? '0.00', weighted: open.weighted ?? '0.00' };
 }
 
-/** Linhas do funil (chegaram → ganhas), com a largura da barra relativa à maior contagem (mínimo 8% se houver algo). */
-export function funnelRows(summary) {
-  const max = Math.max(...FUNNEL_STAGES.map((stage) => summary.stages[stage].count));
-  return FUNNEL_STAGES.map((stage) => {
-    const { count, total } = summary.stages[stage];
-    const width = count === 0 || max === 0 ? 0 : Math.max(8, Math.round((count / max) * 100));
-    return { stage, count, total, width };
-  });
+/** Ticket médio das ganhas (valor ganho ÷ quantidade); null sem nenhuma ganha. */
+export function wonAverage(summary) {
+  const count = Number(summary?.won?.count ?? 0);
+  if (count === 0) return null;
+  return fromCents(Math.round(toCents(summary.won.total ?? '0.00') / count));
 }
 
-/** Ganhas ÷ (ganhas + perdidas), como "12,5%"; null enquanto nada foi fechado. */
+/**
+ * Cartão "Funis em andamento" do Painel (a partir de GET /commercial/overview): os funis com oportunidades em
+ * negociação ou ganhas no mês, os de mais negociações primeiro (no máximo `limit`), com a barra relativa ao maior
+ * (mínimo 8% quando há algo).
+ */
+export function funnelRows(byFunnel, limit = 5) {
+  const rows = (byFunnel ?? [])
+    .map((f) => ({ funnelId: f.funnelId, key: f.key, name: f.name, open: Number(f.open ?? 0), won: Number(f.won ?? 0), wonTotal: f.wonTotal ?? '0.00' }))
+    .filter((f) => f.open + f.won > 0)
+    .sort((a, b) => b.open - a.open || b.won - a.won)
+    .slice(0, limit);
+  const max = Math.max(0, ...rows.map((r) => r.open));
+  return rows.map((r) => ({ ...r, width: r.open === 0 || max === 0 ? 0 : Math.max(8, Math.round((r.open / max) * 100)) }));
+}
+
+/** Ganhas ÷ (ganhas + perdidas), como "12,5%"; null enquanto nada foi fechado. O servidor manda a porcentagem. */
 export function conversionRate(summary) {
-  const won = summary.stages.won.count;
-  const closed = won + summary.stages.lost.count;
-  return closed === 0 ? null : `${percentFormat.format((won / closed) * 100)}%`;
+  const rate = summary?.conversionRate;
+  if (rate === null || rate === undefined || !Number.isFinite(Number(rate))) return null;
+  return `${percentFormat.format(Number(rate))}%`;
 }
 
 /** Dias inteiros entre duas datas, pelo calendário de Brasília (hoje = 0; datas futuras também dão 0). */

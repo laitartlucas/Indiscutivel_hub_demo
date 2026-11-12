@@ -8,6 +8,9 @@ import {
   funnelRows,
   greeting,
   idleLabel,
+  listRows,
+  listTotal,
+  loadCommercialOverview,
   loadDashboard,
   loadDealsSummary,
   loadPeopleRecent,
@@ -16,6 +19,7 @@ import {
   loadProductsTotal,
   openTotals,
   pack,
+  wonAverage,
 } from '../lib/dashboard.js';
 import { arcs, icon } from '../ih-icons.js';
 import { renderShell } from '../shell.js';
@@ -25,8 +29,6 @@ import { setTasksBadge } from '../lib/tasks-badge.js';
 import { alert, button, emptyState, skeleton, statCard } from '../ui/components.js';
 import { mountActiveCard } from '../ui/active-students.js';
 import { iaCard } from '../ui/ia-link.js';
-import { loadPipelineConfig } from '../lib/pipeline-config.js';
-import { stageLabel } from '../ui/kanban.js';
 import { focusHeading, mount } from '../lib/dom.js';
 import { levelNumber, nextLevelText, xpBar } from '../lib/progress.js';
 import { sessionLine } from '../lib/mentora.js';
@@ -51,20 +53,23 @@ function retryAlert(message) {
   </div>`;
 }
 
-function paintStat(el, packed, label, iconName) {
+function paintStat(el, packed, label, iconName, note) {
   if (packed.status === 'error') {
     mount(el, retryAlert('Não foi possível carregar.'));
     return;
   }
-  mount(el, statCard({ label, value: String(packed.value.page.total), iconName }));
+  mount(el, statCard({ label, value: String(listTotal(packed.value)), iconName, note: note?.(packed.value) }));
 }
+
+/** "3 clientes" a partir da contagem de contatos por situação. */
+const clientsNote = (counts) => (Number.isInteger(counts?.client) ? plural(counts.client, 'cliente', 'clientes') : '');
 
 function paintList(el, packed, renderOk, emptyMessage) {
   if (packed.status === 'error') {
     mount(el, retryAlert('Não foi possível carregar agora. Tente de novo em instantes.'));
     return;
   }
-  if (packed.value.data.length === 0) {
+  if (listRows(packed.value).length === 0) {
     mount(el, emptyState({ title: emptyMessage }));
     return;
   }
@@ -73,7 +78,7 @@ function paintList(el, packed, renderOk, emptyMessage) {
 
 function renderProductsRecent(v) {
   return html`<ul class="recent-list">
-    ${v.data.map(
+    ${listRows(v).map(
       (p) =>
         html`<li class="recent-item"><span class="recent-item-name">${p.name}</span><span class="recent-item-meta">${formatMoney(p.price)}</span></li>`,
     )}
@@ -82,9 +87,9 @@ function renderProductsRecent(v) {
 
 function renderPeopleRecent(v) {
   return html`<ul class="recent-list">
-    ${v.data.map(
+    ${listRows(v).map(
       (p) =>
-        html`<li class="recent-item"><span class="recent-item-name">${p.name}</span><span class="recent-item-meta">${p.whatsapp ? formatWhatsapp(p.whatsapp) : '—'}</span></li>`,
+        html`<li class="recent-item"><a class="recent-item-name recent-item-link" href="#/comercial/contatos/${encodeURIComponent(p.id)}">${p.name}</a><span class="recent-item-meta">${p.whatsapp ? formatWhatsapp(p.whatsapp) : '—'}</span></li>`,
     )}
   </ul>`;
 }
@@ -110,39 +115,38 @@ function renderTodayTasks({ list, summary }, now) {
     <ul class="recent-list">${list.data.map((t) => html`<li class="recent-item${t.status === 'done' ? ' is-done' : ''}"><span class="recent-item-name">${t.title}</span><span class="recent-item-meta${isOverdue(t, now) ? ' is-late' : ''}">${dueLabel(t, now)}</span></li>`)}</ul>${lateNote}`;
 }
 
-// ---------- resumo de Oportunidades: "próximo movimento", ganhas, KPIs e funil ----------
+// ---------- resumo das oportunidades (todos os funis): "próximo movimento", ganhas, KPIs e funis ----------
 
-/** Título do cartão verde e, se houver, as Oportunidades abertas paradas há mais tempo. */
+/** Título do cartão verde: quantas negociações estão abertas. */
 function nextMoveCopy(summary) {
-  const inProgress = summary.stages.talking.count + summary.stages.proposal.count;
-  if (inProgress > 0) return `Você tem ${plural(inProgress, 'oportunidade', 'oportunidades')} em andamento.`;
-  const arrived = summary.stages.arrived.count;
-  if (arrived > 0) return `Você tem ${plural(arrived, 'oportunidade esperando', 'oportunidades esperando')} o primeiro contato.`;
-  return 'Seu funil está vazio.';
+  const open = openTotals(summary).count;
+  if (open > 0) return `Você tem ${plural(open, 'oportunidade', 'oportunidades')} em negociação.`;
+  return 'Seu pipeline está vazio.';
 }
 
 function renderNextMove(summary, now) {
-  const noDeals = Object.values(summary.stages).every((stage) => stage.count === 0);
+  const empty = openTotals(summary).count === 0 && Number(summary?.won?.count ?? 0) === 0 && Number(summary?.lost?.count ?? 0) === 0;
+  const waiting = Array.isArray(summary?.waiting) ? summary.waiting : [];
   return html`<section class="dash-premium" aria-labelledby="dash-next-title">
     ${arcs()}
     <div class="dash-premium-main">
       <span class="eyebrow">Seu próximo movimento</span>
       <h2 id="dash-next-title">${nextMoveCopy(summary)}</h2>
-      ${noDeals ? html`<p class="dash-premium-hint">Abra a primeira oportunidade para acompanhar suas vendas por aqui.</p>` : ''}
-      <a class="dash-cta" href="#/oportunidades">Ver oportunidades${icon('arrowRight')}</a>
+      ${empty ? html`<p class="dash-premium-hint">Abra a primeira oportunidade no Pipeline para acompanhar suas vendas por aqui.</p>` : ''}
+      <a class="dash-cta" href="#/comercial/pipeline">Abrir pipeline${icon('arrowRight')}</a>
     </div>
-    ${summary.waiting.length > 0
-      ? html`<ul class="dash-waiting">${summary.waiting.map(
-          (w) => html`<li><a href="#/oportunidades"><span class="dash-waiting-top"><span class="dash-waiting-name">${w.personName}</span><span class="dash-waiting-value">${formatMoneyCompact(w.value)}</span></span><span class="dash-waiting-meta">${stageLabel(w.stage)} · ${idleLabel(w.updatedAt, now)}</span></a></li>`,
+    ${waiting.length > 0
+      ? html`<ul class="dash-waiting">${waiting.map(
+          (w) => html`<li><a href="#/comercial/oportunidades/${encodeURIComponent(w.id)}"><span class="dash-waiting-top"><span class="dash-waiting-name">${w.personName}</span><span class="dash-waiting-value">${formatMoneyCompact(w.value)}</span></span><span class="dash-waiting-meta">${w.stageName ?? ''} · ${idleLabel(w.updatedAt, now)}</span></a></li>`,
         )}</ul>`
       : ''}
   </section>`;
 }
 
 function renderWon(summary) {
-  const won = summary.stages.won;
+  const won = summary?.won ?? { count: 0, total: '0.00' };
   return html`<section class="dash-card dash-won" aria-labelledby="dash-won-title">
-    <div class="dash-card-head"><h2 id="dash-won-title" class="eyebrow eyebrow-muted">Vendas ganhas</h2><a href="#/clientes">Ver clientes</a></div>
+    <div class="dash-card-head"><h2 id="dash-won-title" class="eyebrow eyebrow-muted">Vendas ganhas</h2><a href="#/comercial/contatos?status=client">Ver clientes</a></div>
     <p class="dash-won-value">${formatMoneyCompact(won.total)}</p>
     <p class="dash-won-note">${won.count === 0 ? 'Nenhuma oportunidade ganha ainda.' : html`<strong>${plural(won.count, 'oportunidade ganha', 'oportunidades ganhas')}</strong>`}</p>
   </section>`;
@@ -150,25 +154,31 @@ function renderWon(summary) {
 
 function renderDealKpis(summary) {
   const open = openTotals(summary);
-  return html`${statCard({ label: 'Pipeline em aberto', value: formatMoneyCompact(open.total), iconName: 'pipeline', note: plural(open.count, 'oportunidade', 'oportunidades') })}${statCard({
-    label: 'Oportunidades abertas',
-    value: String(open.count),
+  return html`${statCard({ label: 'Em negociação', value: formatMoneyCompact(open.total), iconName: 'pipeline', note: plural(open.count, 'oportunidade', 'oportunidades') })}${statCard({
+    label: 'Valor ponderado',
+    value: formatMoneyCompact(open.weighted),
     iconName: 'leads',
-    note: open.count === 0 ? '' : `${open.talking} em andamento`,
+    note: open.count === 0 ? '' : 'valor × chance de cada etapa',
   })}`;
 }
 
-function renderFunnel(summary) {
-  const rows = funnelRows(summary);
-  const empty = rows.every((r) => r.count === 0);
+function renderFunnel(summary, overviewPacked) {
   const conversion = conversionRate(summary);
-  return html`<div class="dash-card-head"><h2>Funil de vendas</h2><a href="#/oportunidades">Abrir oportunidades</a></div>
-    ${empty
-      ? emptyState({ title: 'Nenhuma oportunidade ainda.', message: 'Quando você abrir oportunidades, o funil aparece aqui.' })
-      : html`<ul class="dash-funnel">${rows.map(
-          (r) => html`<li class="dash-funnel-row"><span class="dash-funnel-name">${stageLabel(r.stage)}</span><span class="dash-funnel-track"><span class="dash-funnel-bar" data-stage="${r.stage}" data-width="${r.width}">${r.count > 0 ? r.count : ''}</span></span><span class="dash-funnel-value">${formatMoneyCompact(r.total)}</span></li>`,
-        )}</ul>
-        <p class="dash-funnel-foot"><span>Conversão <strong>${conversion ?? '—'}</strong></span><span>Ticket médio <strong>${summary.wonAverage ? formatMoneyCompact(summary.wonAverage) : '—'}</strong></span></p>`}`;
+  const average = wonAverage(summary);
+  const foot = html`<p class="dash-funnel-foot"><span>Conversão <strong>${conversion ?? '—'}</strong></span><span>Ticket médio <strong>${average ? formatMoneyCompact(average) : '—'}</strong></span></p>`;
+  const head = html`<div class="dash-card-head"><h2>Funis em andamento</h2><a href="#/comercial">Ver visão geral</a></div>`;
+  if (overviewPacked?.status !== 'ok') {
+    return html`${head}${overviewPacked?.status === 'error' ? retryAlert('Não foi possível carregar os funis agora.') : skeleton(3)}${foot}`;
+  }
+  const rows = funnelRows(overviewPacked.value?.byFunnel);
+  if (rows.length === 0) {
+    return html`${head}${emptyState({ title: 'Nenhuma negociação no mês.', message: 'Quando você abrir oportunidades, os funis com movimento aparecem aqui.' })}${foot}`;
+  }
+  return html`${head}<ul class="dash-funnel">${rows.map(
+      (r) => html`<li class="dash-funnel-row"><a class="dash-funnel-name" href="#/comercial/pipeline/${encodeURIComponent(r.key ?? '')}">${r.name}</a><span class="dash-funnel-track"><span class="dash-funnel-bar" data-width="${r.width}">${r.open > 0 ? r.open : ''}</span></span><span class="dash-funnel-value">${r.won > 0 ? `${r.won} ${r.won === 1 ? 'ganha' : 'ganhas'}` : '—'}</span></li>`,
+    )}</ul>
+    <p class="sr-only">As barras mostram as oportunidades em negociação em cada funil neste mês.</p>
+    ${foot}`;
 }
 
 /** Cartão discreto de nível e XP (dados reais de GET /progress), com link para Meu progresso. */
@@ -241,10 +251,10 @@ export function renderHome({ root, session, api, navigate }) {
       <div id="dash-progress"></div>
       <div id="dash-mentoring"></div>
       <div class="dash-split dash-split-flow">
-        <section class="dash-card" id="dash-funnel" aria-label="Funil de vendas">${skeleton(4)}</section>
+        <section class="dash-card" id="dash-funnel" aria-label="Funis em andamento">${skeleton(4)}</section>
         <div class="dash-side">
           <section class="dash-card" id="dash-tasks" aria-labelledby="dash-tasks-title"><div class="dash-card-head"><h2 id="dash-tasks-title">Foco de hoje</h2><a href="#/tarefas">Ver tarefas</a></div><div id="dash-tasks-body">${skeleton(3)}</div></section>
-          <section class="dash-card"><div class="dash-card-head"><h2>Pessoas recentes</h2><a href="#/pessoas">Ver todas</a></div><div id="dash-people-recent">${skeleton(3)}</div></section>
+          <section class="dash-card"><div class="dash-card-head"><h2>Contatos recentes</h2><a href="#/comercial/contatos">Ver todos</a></div><div id="dash-people-recent">${skeleton(3)}</div></section>
           <section class="dash-card"><div class="dash-card-head"><h2>Produtos recentes</h2><a href="#/produtos">Ver todos</a></div><div id="dash-products-recent">${skeleton(3)}</div></section>
         </div>
       </div>
@@ -308,6 +318,8 @@ export function renderHome({ root, session, api, navigate }) {
     }
   }
 
+  let overviewPacked = null;
+
   function paintSummary(packed) {
     if (packed.status === 'error') {
       mount(nextMoveEl, retryAlert('Não foi possível carregar agora. Tente de novo em instantes.'));
@@ -320,7 +332,7 @@ export function renderHome({ root, session, api, navigate }) {
     mount(nextMoveEl, renderNextMove(summary, now));
     mount(wonEl, renderWon(summary));
     mount(dealKpisEl, renderDealKpis(summary));
-    mount(funnelEl, renderFunnel(summary));
+    mount(funnelEl, renderFunnel(summary, overviewPacked));
     applyFunnelWidths();
   }
 
@@ -329,8 +341,9 @@ export function renderHome({ root, session, api, navigate }) {
   // As quatro peças que vêm do resumo de Oportunidades compartilham uma só chamada.
   function retrySummary() {
     for (const el of [nextMoveEl, wonEl, dealKpisEl, funnelEl]) mount(el, skeleton(el === funnelEl ? 4 : 2));
-    pack(loadDealsSummary(api)).then((packed) => {
+    Promise.all([pack(loadDealsSummary(api)), pack(loadCommercialOverview(api))]).then(([packed, overview]) => {
       if (disposed) return;
+      overviewPacked = overview;
       paintSummary(packed);
     });
   }
@@ -360,7 +373,7 @@ export function renderHome({ root, session, api, navigate }) {
     mount(peopleStatEl, skeleton(1));
     pack(loadPeopleTotal(api)).then((packed) => {
       if (disposed) return;
-      paintStat(peopleStatEl, packed, 'Pessoas cadastradas', 'contatos');
+      paintStat(peopleStatEl, packed, 'Contatos', 'contatos', clientsNote);
     });
   }
 
@@ -376,7 +389,7 @@ export function renderHome({ root, session, api, navigate }) {
     mount(peopleRecentEl, skeleton(3));
     pack(loadPeopleRecent(api)).then((packed) => {
       if (disposed) return;
-      paintList(peopleRecentEl, packed, renderPeopleRecent, 'Nenhuma pessoa ainda.');
+      paintList(peopleRecentEl, packed, renderPeopleRecent, 'Nenhum contato ainda.');
     });
   }
 
@@ -415,13 +428,14 @@ export function renderHome({ root, session, api, navigate }) {
 
   // Carga inicial: uma única leva com todas as chamadas em paralelo (`Promise.all` sobre `pack()` dentro
   // de `loadDashboard`) — só o retry acima busca uma peça isolada.
-  Promise.all([loadDashboard(api), loadPipelineConfig(api)]).then(([data]) => {
+  loadDashboard(api).then((data) => {
     if (disposed) return;
+    overviewPacked = data.overview;
     paintSummary(data.dealsSummary);
     paintStat(productsStatEl, data.productsTotal, 'Produtos ativos', 'crm');
-    paintStat(peopleStatEl, data.peopleTotal, 'Pessoas cadastradas', 'contatos');
+    paintStat(peopleStatEl, data.peopleTotal, 'Contatos', 'contatos', clientsNote);
     paintList(productsRecentEl, data.productsRecent, renderProductsRecent, 'Nenhum produto ainda.');
-    paintList(peopleRecentEl, data.peopleRecent, renderPeopleRecent, 'Nenhuma pessoa ainda.');
+    paintList(peopleRecentEl, data.peopleRecent, renderPeopleRecent, 'Nenhum contato ainda.');
   });
 
   return () => {

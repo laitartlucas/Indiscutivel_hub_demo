@@ -2,12 +2,14 @@
 // API falsa da versão de demonstração: reproduz, em memória (com cópia em localStorage), as rotas de /api/v1
 // que o front usa, com os mesmos formatos de resposta, paginação, `version` otimista e erros problem+json do servidor.
 // Sem dependências. Os dados são todos fictícios (ver seed.js).
-import { normalizeEmail, normalizeInstagram, normalizeWhatsapp } from '../shared/contact.js';
 import { createGrowthDemo } from './mock-growth.js';
 import { createFollowupDemo } from './mock-followup.js';
 import { createMentoraDemo } from './mock-mentora.js';
 import { createTeamDemo } from './mock-team.js';
 import { createReportsDemo } from './mock-reports.js';
+import { createCommercialDemo } from './mock-commercial.js';
+import { createFinanceDemo } from './mock-finance.js';
+import { createMarketingDemo } from './mock-marketing.js';
 import { ASSISTANT_EMAIL, buildSeed, DEMO_PASSWORD, MENTORA_EMAIL, SCHEMA_VERSION, STUDENT_EMAIL } from './seed.js';
 
 export { ASSISTANT_EMAIL, DEMO_PASSWORD, MENTORA_EMAIL, STUDENT_EMAIL };
@@ -24,8 +26,6 @@ const TWO_FACTOR_HINT = 'Demonstração: use 123456';
 const TWO_FACTOR_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
 const TWO_FACTOR_RECOVERY = Array.from({ length: 10 }, (_, i) => `DEMA${'ABCDEFGHJK'[i]}-${String((i % 8) + 2).repeat(5)}`);
 
-const STAGES = ['arrived', 'talking', 'proposal', 'won', 'lost'];
-const TEMPERATURES = ['cold', 'warm', 'hot'];
 const SOURCE_KEY = /^[a-z][a-z0-9_]{0,39}$/;
 const DEFAULT_LEAD_SOURCES = [
   ['referral', 'Indicação'],
@@ -480,12 +480,6 @@ export function createDemoApi(options = {}) {
 
   const withoutOwner = (row) => Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'ownerId'));
   const productDto = withoutOwner;
-  const dealDto = withoutOwner;
-  /** Pessoa + nome da Empresa (como o JOIN do servidor). Empresa que não existe mais não aparece. */
-  function personDto(row) {
-    const company = row.companyId ? db.companies.find((c) => c.id === row.companyId && c.ownerId === row.ownerId) : null;
-    return { ...withoutOwner(row), companyId: company ? company.id : null, companyName: company?.name ?? null };
-  }
 
   const mine = (list, owner) => list.filter((row) => row.ownerId === owner.id);
 
@@ -1044,397 +1038,21 @@ export function createDemoApi(options = {}) {
     return { status: 204 };
   }
 
-  // ---- pessoas
-
-  const PEOPLE_QUERY = {
-    q: 'text',
-    source: { pattern: SOURCE_KEY, message: 'Origem inválida.' },
-    sort: { enum: ['name', 'created_at'] },
-    order: { enum: ['asc', 'desc'] },
-    companyId: 'uuid',
-    ...PAGING,
-  };
-
-  function listPeople(searchParams) {
-    const u = requireAuth();
-    const query = readQuery(searchParams, PEOPLE_QUERY, { sort: 'name', order: 'asc', ...PAGING_DEFAULTS });
-    let rows = mine(db.people, u);
-    if (query.source) rows = rows.filter((p) => p.source === query.source);
-    if (query.companyId) rows = rows.filter((p) => p.companyId === query.companyId);
-    if (query.q) {
-      const text = fold(query.q);
-      const digits = query.q.replace(/\D/g, '');
-      rows = rows.filter(
-        (p) =>
-          fold(p.name).includes(text) ||
-          fold(personDto(p).companyName ?? '').includes(text) ||
-          (p.instagram ?? '').toLowerCase().includes(text) ||
-          (p.email ?? '').toLowerCase().includes(text) ||
-          (digits.length >= 3 && (p.whatsapp ?? '').includes(digits)),
-      );
-    }
-    const keys = { name: (p) => p.name.toLowerCase(), created_at: (p) => p.createdAt };
-    rows = sortRows(rows, keys[query.sort], query.order, query.sort === 'name' ? { compare: byText } : {});
-    const result = paginate(rows, query);
-    return { status: 200, body: { ...result, data: result.data.map(personDto) } };
-  }
-
-  function readContact(normalize, value, field, issues, { patch }) {
-    if (value === undefined) return patch ? undefined : null;
-    if (value !== null && typeof value !== 'string') return void issues.add(field, 'Dados inválidos.');
-    const result = normalize(value);
-    if (!result.ok) return void issues.add(field, result.message ?? 'Valor inválido.');
-    return result.value ?? null;
-  }
-
-  function duplicateWhatsapp(name) {
-    const message = name ? `Já existe uma pessoa com esse WhatsApp: ${name}.` : 'Já existe uma pessoa com esse WhatsApp.';
-    return Errors.conflict('duplicate_whatsapp', message, [{ field: 'whatsapp', message }]);
-  }
-
-  function createPerson(body) {
-    const u = requireAuth();
-    const b = requireBody(body);
-    const issues = createIssues();
-    onlyKeys(b, ['name', 'whatsapp', 'instagram', 'email', 'source', 'companyId'], issues);
-    const name = readName(b.name, 'Informe o nome.', issues);
-    const companyId = readCompanyId(b.companyId, issues, u);
-    const whatsapp = readContact(normalizeWhatsapp, b.whatsapp, 'whatsapp', issues, { patch: false });
-    const instagram = readContact(normalizeInstagram, b.instagram, 'instagram', issues, { patch: false });
-    const email = readContact(normalizeEmail, b.email, 'email', issues, { patch: false });
-    let source = 'other';
-    if (b.source !== undefined) {
-      if (!allowedSource(u, b.source)) issues.add('source', 'Origem inválida.');
-      else source = b.source;
-    } else if (!allowedSource(u, 'other')) issues.add('source', 'Origem inválida.');
-    issues.throwIfAny();
-    if (whatsapp) {
-      const existing = mine(db.people, u).find((p) => p.whatsapp === whatsapp);
-      if (existing) throw duplicateWhatsapp(existing.name);
-    }
-    const at = stamp();
-    const row = { id: newId(), ownerId: u.id, name, whatsapp, instagram, email, source, companyId: companyId ?? null, createdAt: at, updatedAt: at, version: 1 };
-    db.people.push(row);
-    awardXp(u, 'person_created', `person:${row.id}`, at);
-    return { status: 201, body: personDto(row) };
-  }
-
-  function getPerson(id) {
-    const u = requireAuth();
-    const row = findOwned(db.people, u, id, 'Pessoa não encontrada.');
-    if (!row) throw Errors.notFound('Pessoa não encontrada.');
-    return { status: 200, body: personDto(row) };
-  }
-
-  function patchPerson(id, body) {
-    const u = requireAuth();
-    if (!UUID.test(id)) throw Errors.notFound('Pessoa não encontrada.');
-    const b = requireBody(body);
-    const issues = createIssues();
-    onlyKeys(b, ['name', 'whatsapp', 'instagram', 'email', 'source', 'companyId', 'version'], issues);
-    const patch = {};
-    const companyId = readCompanyId(b.companyId, issues, u);
-    if (companyId !== undefined) patch.companyId = companyId;
-    if (b.name !== undefined) patch.name = readName(b.name, 'Informe o nome.', issues);
-    for (const [field, normalize] of [['whatsapp', normalizeWhatsapp], ['instagram', normalizeInstagram], ['email', normalizeEmail]]) {
-      const value = readContact(normalize, b[field], field, issues, { patch: true });
-      if (value !== undefined) patch[field] = value;
-    }
-    if (b.source !== undefined) {
-      if (!allowedSource(u, b.source, mine(db.people, u).find((p) => p.id === id)?.source)) issues.add('source', 'Origem inválida.');
-      else patch.source = b.source;
-    }
-    const version = readVersion(b.version, issues);
-    if (!['name', 'whatsapp', 'instagram', 'email', 'source', 'companyId'].some((k) => b[k] !== undefined)) {
-      issues.add('', 'Informe ao menos um campo para alterar.');
-    }
-    issues.throwIfAny();
-
-    if (patch.whatsapp) {
-      const existing = mine(db.people, u).find((p) => p.whatsapp === patch.whatsapp && p.id !== id);
-      if (existing) throw duplicateWhatsapp(existing.name);
-    }
-    const row = findOwned(db.people, u, id, 'Pessoa não encontrada.');
-    if (!row) throw Errors.notFound('Pessoa não encontrada.');
-    if (row.version !== version) {
-      throw Errors.conflict('version_conflict', 'Esta pessoa foi alterada em outra aba ou outro dispositivo. Recarregue a lista e tente de novo.');
-    }
-    const next = { ...row, ...patch, version: row.version + 1, updatedAt: stamp() };
-    return { status: 200, body: personDto(replaceRow(db.people, id, next)) };
-  }
-
-  function deletePerson(id) {
-    const u = requireAuth();
-    const row = findOwned(db.people, u, id, 'Pessoa não encontrada.');
-    if (!row) throw Errors.notFound('Pessoa não encontrada.');
-    const removedDeals = new Set(db.deals.filter((d) => d.personId === id).map((d) => d.id));
-    db.people = db.people.filter((p) => p.id !== id);
-    db.deals = db.deals.filter((d) => d.personId !== id); // ON DELETE CASCADE
-    db.dealHistory = db.dealHistory.filter((h) => !removedDeals.has(h.dealId));
-    // Tarefas continuam, só perdem o vínculo (ON DELETE SET NULL).
-    db.tasks = db.tasks.map((t) => ({ ...t, personId: t.personId === id ? null : t.personId, dealId: removedDeals.has(t.dealId) ? null : t.dealId }));
-    db.leads = db.leads.map((l) => ({ ...l, convertedPersonId: l.convertedPersonId === id ? null : l.convertedPersonId, convertedDealId: removedDeals.has(l.convertedDealId) ? null : l.convertedDealId }));
-    return { status: 204 };
-  }
-
-  // ---- oportunidades
-
-  const DEAL_QUERY = {
-    q: 'text',
-    stage: { enum: STAGES, message: 'Estágio inválido.' },
-    temperature: { enum: TEMPERATURES, message: 'Temperatura inválida.' },
-    productId: 'uuid',
-    sort: { enum: ['created_at', 'value'] },
-    order: { enum: ['asc', 'desc'] },
-    ...PAGING,
-  };
-
-  function listDeals(searchParams) {
-    const u = requireAuth();
-    const query = readQuery(searchParams, DEAL_QUERY, { sort: 'created_at', order: 'desc', ...PAGING_DEFAULTS });
-    const people = new Map(mine(db.people, u).map((p) => [p.id, p]));
-    let rows = mine(db.deals, u).filter((d) => people.has(d.personId));
-    if (query.stage) rows = rows.filter((d) => d.stage === query.stage);
-    if (query.temperature) rows = rows.filter((d) => d.temperature === query.temperature);
-    if (query.productId) rows = rows.filter((d) => d.productId === query.productId);
-    if (query.q) rows = rows.filter((d) => fold(people.get(d.personId).name).includes(fold(query.q)));
-    const keys = { created_at: (d) => d.createdAt, value: (d) => toCents(d.value) };
-    rows = sortRows(rows, keys[query.sort], query.order);
-    const result = paginate(rows, query);
-    return {
-      status: 200,
-      body: { ...result, data: result.data.map((d) => ({ ...dealDto(d), personName: people.get(d.personId).name })) },
-    };
-  }
-
-  function dealsSummary(searchParams) {
-    const u = requireAuth();
-    readQuery(searchParams, {}, {});
-    const people = new Map(mine(db.people, u).map((p) => [p.id, p]));
-    const rows = mine(db.deals, u).filter((d) => people.has(d.personId));
-    const stages = {};
-    let wonAverage = null;
-    for (const stage of STAGES) {
-      const inStage = rows.filter((d) => d.stage === stage);
-      const sum = inStage.reduce((n, d) => n + toCents(d.value), 0);
-      stages[stage] = { count: inStage.length, total: fromCents(sum) };
-      if (stage === 'won' && inStage.length) wonAverage = fromCents(Math.round(sum / inStage.length));
-    }
-    const waiting = sortRows(
-      rows.filter((d) => d.stage === 'talking' || d.stage === 'proposal'),
-      (d) => d.updatedAt,
-      'asc',
-    )
-      .slice(0, 3)
-      .map((d) => ({ id: d.id, personName: people.get(d.personId).name, value: d.value, stage: d.stage, updatedAt: d.updatedAt }));
-    return { status: 200, body: { stages, wonAverage, waiting } };
-  }
-
-  function readDealRefs(u, { personId, productId }, issues) {
-    if (personId !== undefined && !mine(db.people, u).some((p) => p.id === personId)) issues.add('personId', 'Pessoa não encontrada.');
-    if (productId) {
-      if (!mine(db.products, u).some((p) => p.id === productId)) issues.add('productId', 'Produto não encontrado.');
-    }
-  }
-
-  function readUuid(value, field, issues) {
-    if (typeof value !== 'string' || !UUID.test(value)) return void issues.add(field, 'Identificador inválido.');
-    return value;
-  }
-
-  function createDeal(body) {
-    const u = requireAuth();
-    const b = requireBody(body);
-    const issues = createIssues();
-    onlyKeys(b, ['personId', 'productId', 'value', 'temperature'], issues);
-    const personId = readUuid(b.personId, 'personId', issues);
-    let productId = null;
-    if (b.productId !== undefined && b.productId !== null) productId = readUuid(b.productId, 'productId', issues) ?? null;
-    const value = b.value === undefined ? undefined : readMoney(b.value, issues, 'value');
-    let temperature = 'warm';
-    if (b.temperature !== undefined) {
-      if (!TEMPERATURES.includes(b.temperature)) issues.add('temperature', 'Temperatura inválida.');
-      else temperature = b.temperature;
-    }
-    if (productId == null && b.value === undefined) issues.add('value', 'Informe o valor da oportunidade ou um produto para copiar o preço.');
-    issues.throwIfAny();
-
-    const refs = createIssues();
-    readDealRefs(u, { personId, productId }, refs);
-    refs.throwIfAny();
-    let finalValue = value;
-    if (productId && finalValue === undefined) finalValue = mine(db.products, u).find((p) => p.id === productId).price;
-    const at = stamp();
-    const row = {
-      id: newId(),
-      ownerId: u.id,
-      personId,
-      productId,
-      value: finalValue,
-      stage: 'arrived',
-      temperature,
-      lostReason: null,
-      openedAt: at,
-      closedAt: null,
-      expectedCloseOn: null,
-      notes: null,
-      createdAt: at,
-      updatedAt: at,
-      version: 1,
-    };
-    db.deals.push(row);
-    return { status: 201, body: dealDto(row) };
-  }
-
-  function getDeal(id) {
-    const u = requireAuth();
-    const row = findOwned(db.deals, u, id, 'Oportunidade não encontrada.');
-    if (!row) throw Errors.notFound('Oportunidade não encontrada.');
-    const person = db.people.find((p) => p.id === row.personId && p.ownerId === u.id);
-    const company = person?.companyId ? db.companies.find((c) => c.id === person.companyId && c.ownerId === u.id) : null;
-    const product = row.productId ? db.products.find((p) => p.id === row.productId && p.ownerId === u.id) : null;
-    return {
-      status: 200,
-      body: { ...dealDto(row), personName: person?.name ?? '', companyId: company?.id ?? null, companyName: company?.name ?? null, productName: product?.name ?? null },
-    };
-  }
-
-  function dealHistory(id, searchParams) {
-    const u = requireAuth();
-    readQuery(searchParams, {}, {});
-    const row = findOwned(db.deals, u, id, 'Oportunidade não encontrada.');
-    if (!row) throw Errors.notFound('Oportunidade não encontrada.');
-    const data = db.dealHistory
-      .filter((h) => h.dealId === id && h.ownerId === u.id)
-      .sort((a, b) => (a.changedAt < b.changedAt ? -1 : a.changedAt > b.changedAt ? 1 : a.id < b.id ? -1 : 1))
-      .map((h) => ({ fromStage: h.fromStage, toStage: h.toStage, changedAt: h.changedAt }));
-    return { status: 200, body: { data } };
-  }
-
-  /** Previsão de fechamento: data real do calendário (AAAA-MM-DD), entre 2000 e 2100. */
-  function readExpectedCloseOn(value, issues) {
-    if (value === undefined) return undefined;
-    if (value === null) return null;
-    if (typeof value !== 'string' || !isRealDate(value) || Number(value.slice(0, 4)) < 2000) return void issues.add('expectedCloseOn', 'Informe uma data válida.');
-    return value;
-  }
-
-  function readDealNotes(value, issues) {
-    if (value === undefined) return undefined;
-    if (value === null) return null;
-    if (typeof value !== 'string') return void issues.add('notes', 'Dados inválidos.');
-    const s = value.trim();
-    if (s.length > 1000) return void issues.add('notes', 'Notas muito longas (máximo 1000).');
-    if (NOTES_CONTROL_CHARS.test(s)) return void issues.add('notes', 'As notas contêm caracteres inválidos.');
-    return s === '' ? null : s;
-  }
-
-  function patchDeal(id, body) {
-    const u = requireAuth();
-    if (!UUID.test(id)) throw Errors.notFound('Oportunidade não encontrada.');
-    const b = requireBody(body);
-    const issues = createIssues();
-    onlyKeys(b, ['value', 'temperature', 'productId', 'expectedCloseOn', 'notes', 'version'], issues);
-    const patch = {};
-    const expectedCloseOn = readExpectedCloseOn(b.expectedCloseOn, issues);
-    if (expectedCloseOn !== undefined) patch.expectedCloseOn = expectedCloseOn;
-    const dealNotes = readDealNotes(b.notes, issues);
-    if (dealNotes !== undefined) patch.notes = dealNotes;
-    if (b.value !== undefined) patch.value = readMoney(b.value, issues, 'value');
-    if (b.temperature !== undefined) {
-      if (!TEMPERATURES.includes(b.temperature)) issues.add('temperature', 'Temperatura inválida.');
-      else patch.temperature = b.temperature;
-    }
-    if (b.productId !== undefined) patch.productId = b.productId === null ? null : readUuid(b.productId, 'productId', issues);
-    const version = readVersion(b.version, issues);
-    if (!['value', 'temperature', 'productId', 'expectedCloseOn', 'notes'].some((k) => b[k] !== undefined)) issues.add('', 'Informe ao menos um campo para alterar.');
-    issues.throwIfAny();
-
-    const refs = createIssues();
-    readDealRefs(u, { productId: patch.productId }, refs);
-    refs.throwIfAny();
-    const row = findOwned(db.deals, u, id, 'Oportunidade não encontrada.');
-    if (!row) throw Errors.notFound('Oportunidade não encontrada.');
-    if (row.version !== version) throw dealConflict();
-    const next = { ...row, ...patch, version: row.version + 1, updatedAt: stamp() };
-    return { status: 200, body: dealDto(replaceRow(db.deals, id, next)) };
-  }
-
-  const dealConflict = () =>
-    Errors.conflict('version_conflict', 'Esta oportunidade foi alterada em outra aba ou outro dispositivo. Recarregue a lista e tente de novo.');
-
-  function transitionDeal(id, body) {
-    const u = requireAuth();
-    if (!UUID.test(id)) throw Errors.notFound('Oportunidade não encontrada.');
-    const b = requireBody(body);
-    const issues = createIssues();
-    onlyKeys(b, ['toStage', 'lostReason', 'version'], issues);
-    if (!STAGES.includes(b.toStage)) issues.add('toStage', 'Estágio inválido.');
-    let lostReason;
-    if (b.lostReason !== undefined) {
-      if (typeof b.lostReason !== 'string' || b.lostReason.trim() === '') issues.add('lostReason', 'Informe o motivo da perda.');
-      else if (b.lostReason.trim().length > 500) issues.add('lostReason', 'Motivo muito longo (máximo 500).');
-      else if (CONTROL_CHARS.test(b.lostReason.trim())) issues.add('lostReason', 'O motivo contém caracteres inválidos.');
-      else lostReason = b.lostReason.trim();
-    }
-    const version = readVersion(b.version, issues);
-    if (b.toStage === 'lost' && b.lostReason === undefined) issues.add('lostReason', 'Informe o motivo da perda.');
-    issues.throwIfAny();
-
-    const row = findOwned(db.deals, u, id, 'Oportunidade não encontrada.');
-    if (!row) throw Errors.notFound('Oportunidade não encontrada.');
-    if (row.stage === b.toStage) throw Errors.validation([{ field: 'toStage', message: 'A oportunidade já está neste estágio.' }]);
-    if (row.version !== version) throw dealConflict();
-    const closes = b.toStage === 'won' || b.toStage === 'lost';
-    const at = stamp();
-    db.dealHistory.push({ id: newId(), ownerId: u.id, dealId: id, fromStage: row.stage, toStage: b.toStage, changedAt: at });
-    const next = {
-      ...row,
-      stage: b.toStage,
-      closedAt: closes ? at : null,
-      lostReason: b.toStage === 'lost' ? (lostReason ?? null) : null,
-      version: row.version + 1,
-      updatedAt: at,
-    };
-    const saved = dealDto(replaceRow(db.deals, id, next));
-    // +50 XP ao ganhar; reabrir e ganhar de novo a mesma oportunidade não repete (chave `deal-won:<id>`).
-    const xp = b.toStage === 'won' ? awardXp(u, 'deal_won', `deal-won:${id}`) : 0;
-    return { status: 200, body: withXp(saved, xp) };
-  }
-
-  function deleteDeal(id) {
-    const u = requireAuth();
-    const row = findOwned(db.deals, u, id, 'Oportunidade não encontrada.');
-    if (!row) throw Errors.notFound('Oportunidade não encontrada.');
-    db.deals = db.deals.filter((d) => d.id !== id);
-    db.dealHistory = db.dealHistory.filter((h) => h.dealId !== id); // ON DELETE CASCADE
-    db.tasks = db.tasks.map((t) => (t.dealId === id ? { ...t, dealId: null } : t)); // ON DELETE SET NULL
-    db.leads = db.leads.map((l) => (l.convertedDealId === id ? { ...l, convertedDealId: null } : l));
-    return { status: 204 };
-  }
+  // ---- Central Comercial: contatos (/people), funis, oportunidades, linha do tempo e visão geral ficam em mock-commercial.js.
 
   // ---- empresas (dados de negócio da aluna; a mentora recebe 403 em todas as rotas, como no servidor)
 
   const SEGMENTS = ['consulting', 'strategy', 'digital_marketing', 'health', 'education', 'architecture', 'law', 'finance', 'retail', 'technology', 'beauty', 'food', 'industry', 'services', 'other'];
   const UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
   const COMPANY_VERSION_CONFLICT = 'Esta empresa foi alterada em outra aba ou outro dispositivo. Recarregue a lista e tente de novo.';
-  const OPEN_STAGES = ['arrived', 'talking', 'proposal'];
-
-  /** Empresa nula = campo ausente; id inexistente ou de outra aluna = 400 no campo (sem dizer se existe). */
-  function readCompanyId(value, issues, u) {
-    if (value === undefined) return undefined;
-    if (value === null) return null;
-    if (typeof value !== 'string' || !UUID.test(value)) return void issues.add('companyId', 'Empresa inválida.');
-    if (!mine(db.companies, u).some((c) => c.id === value)) return void issues.add('companyId', 'Empresa não encontrada.');
-    return value;
-  }
+  const isOpen = (deal) => deal.stage === 'open'; // `stage` guarda só o resultado (open | won | lost), como no banco
 
   /** Números calculados das Pessoas vinculadas e das Oportunidades delas (mesmas regras do servidor). */
   function companyDto(u, company) {
     const people = mine(db.people, u).filter((p) => p.companyId === company.id);
     const ids = new Set(people.map((p) => p.id));
     const deals = mine(db.deals, u).filter((d) => ids.has(d.personId));
-    const open = deals.filter((d) => OPEN_STAGES.includes(d.stage));
+    const open = deals.filter(isOpen);
     const stamps = [company.updatedAt, ...people.map((p) => p.updatedAt), ...deals.map((d) => d.updatedAt)];
     return {
       ...withoutOwner(company),
@@ -1487,6 +1105,16 @@ export function createDemoApi(options = {}) {
 
   const isDuplicateName = (u, name, exceptId) => mine(db.companies, u).some((c) => c.id !== exceptId && c.name.trim().toLowerCase() === name.trim().toLowerCase());
 
+  function readCompanyNotes(value, issues) {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    if (typeof value !== 'string') return void issues.add('notes', 'Dados inválidos.');
+    const s = value.trim();
+    if (s.length > 1000) return void issues.add('notes', 'Observações muito longas (máximo 1000).');
+    if (MULTILINE_CONTROL_CHARS.test(s)) return void issues.add('notes', 'As observações contêm caracteres inválidos.');
+    return s === '' ? null : s;
+  }
+
   /** Campos de criação/edição. `patch`: ausente continua ausente. */
   function readCompanyFields(b, issues, { patch }) {
     const out = {};
@@ -1514,7 +1142,7 @@ export function createDemoApi(options = {}) {
     });
     if (website !== undefined) out.website = website;
     else if (!patch) out.website = null;
-    const notes = readLeadNotes(b.notes, issues);
+    const notes = readCompanyNotes(b.notes, issues);
     if (notes !== undefined) out.notes = notes;
     else if (!patch) out.notes = null;
     return out;
@@ -1558,12 +1186,15 @@ export function createDemoApi(options = {}) {
             name: p.name,
             whatsapp: p.whatsapp,
             email: p.email,
-            openDealsCount: deals.filter((d) => d.personId === p.id && OPEN_STAGES.includes(d.stage)).length,
+            openDealsCount: deals.filter((d) => d.personId === p.id && isOpen(d)).length,
           })),
         deals: [...deals]
-          .sort((a, b) => Number(!OPEN_STAGES.includes(a.stage)) - Number(!OPEN_STAGES.includes(b.stage)) || (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : a.id < b.id ? -1 : 1))
+          .sort((a, b) => Number(!isOpen(a)) - Number(!isOpen(b)) || (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : a.id < b.id ? -1 : 1))
           .slice(0, 200)
-          .map((d) => ({ id: d.id, personId: d.personId, personName: names.get(d.personId), value: d.value, stage: d.stage, temperature: d.temperature, updatedAt: d.updatedAt })),
+          .map((d) => ({
+            id: d.id, personId: d.personId, personName: names.get(d.personId), value: d.value, stage: d.stage, temperature: d.temperature, updatedAt: d.updatedAt,
+            funnelName: db.funnels.find((f) => f.id === d.funnelId)?.name ?? null, stageName: db.funnelStages.find((st) => st.id === d.stageId)?.name ?? null,
+          })),
       },
     };
   }
@@ -1592,66 +1223,6 @@ export function createDemoApi(options = {}) {
     db.companies = db.companies.filter((c) => c.id !== row.id);
     db.people = db.people.map((p) => (p.companyId === row.id ? { ...p, companyId: null } : p)); // ON DELETE SET NULL
     return { status: 204 };
-  }
-
-  // ---- configuração do funil (rótulo e probabilidade das 5 etapas; a mentora recebe 403, como no servidor)
-
-  const DEFAULT_PIPELINE = [
-    { key: 'arrived', label: 'Chegaram', probability: 10, position: 1 },
-    { key: 'talking', label: 'Em conversa', probability: 30, position: 2 },
-    { key: 'proposal', label: 'Proposta', probability: 60, position: 3 },
-    { key: 'won', label: 'Ganhas', probability: 100, position: 4 },
-    { key: 'lost', label: 'Perdidas', probability: 0, position: 5 },
-  ];
-
-  function getPipelineConfig(searchParams) {
-    const u = requireStudent();
-    readQuery(searchParams, {}, {});
-    const saved = db.pipelineConfig[u.id];
-    return {
-      status: 200,
-      body: {
-        stages: DEFAULT_PIPELINE.map((d) => {
-          const s = saved?.find((x) => x.key === d.key);
-          return s ? { key: d.key, label: s.label, probability: s.probability, position: d.position } : { ...d };
-        }),
-        customized: Boolean(saved),
-      },
-    };
-  }
-
-  function putPipelineConfig(body) {
-    const u = requireStudent();
-    const b = requireBody(body);
-    const issues = createIssues();
-    onlyKeys(b, ['stages'], issues);
-    if (!Array.isArray(b.stages) || b.stages.length !== 5) issues.add('stages', 'Informe as 5 etapas.');
-    else {
-      const seen = new Set();
-      const labels = new Set();
-      b.stages.forEach((s, i) => {
-        const at = (part) => `stages.${i}.${part}`;
-        if (!isPlainObject(s)) return void issues.add(`stages.${i}`, 'Dados inválidos.');
-        for (const key of Object.keys(s)) if (!['key', 'label', 'probability'].includes(key)) issues.add(`stages.${i}`, `Campo não permitido: ${key}.`);
-        if (!STAGES.includes(s.key)) issues.add(at('key'), 'Etapa inválida.');
-        else if (seen.has(s.key)) issues.add(at('key'), 'Etapa repetida.');
-        else seen.add(s.key);
-        const label = typeof s.label === 'string' ? s.label.trim() : null;
-        if (label === null || label === '') issues.add(at('label'), 'Informe o nome da etapa.');
-        else if (label.length > 24) issues.add(at('label'), 'Nome muito longo (máximo 24).');
-        else if (CONTROL_CHARS.test(label)) issues.add(at('label'), 'O nome contém caracteres inválidos.');
-        else if (labels.has(label.toLocaleLowerCase('pt-BR'))) issues.add(at('label'), 'Cada etapa precisa de um nome diferente.');
-        else labels.add(label.toLocaleLowerCase('pt-BR'));
-        if (typeof s.probability !== 'number') issues.add(at('probability'), 'Informe a probabilidade.');
-        else if (!Number.isInteger(s.probability)) issues.add(at('probability'), 'Use um número inteiro de 0 a 100.');
-        else if (s.probability < 0 || s.probability > 100) issues.add(at('probability'), 'A probabilidade vai de 0 a 100.');
-        else if (s.key === 'won' && s.probability !== 100) issues.add(at('probability'), 'Uma oportunidade ganha vale sempre 100%.');
-        else if (s.key === 'lost' && s.probability !== 0) issues.add(at('probability'), 'Uma oportunidade perdida vale sempre 0%.');
-      });
-    }
-    issues.throwIfAny();
-    db.pipelineConfig[u.id] = b.stages.map((s) => ({ key: s.key, label: s.label.trim(), probability: s.probability }));
-    return getPipelineConfig(new URLSearchParams());
   }
 
   // ---- tarefas (dados de negócio da aluna; a mentora recebe 403 em todas as rotas, como no servidor)
@@ -1723,6 +1294,11 @@ export function createDemoApi(options = {}) {
 
   function readEnum(value, list, field, message, issues) {
     if (!list.includes(value)) return void issues.add(field, message);
+    return value;
+  }
+
+  function readUuid(value, field, issues) {
+    if (typeof value !== 'string' || !UUID.test(value)) return void issues.add(field, 'Identificador inválido.');
     return value;
   }
 
@@ -1892,310 +1468,6 @@ export function createDemoApi(options = {}) {
     if (!row) throw Errors.notFound('Tarefa não encontrada.');
     db.tasks = db.tasks.filter((t) => t.id !== id);
     return { status: 204 };
-  }
-
-  // ---- leads (dados de negócio da aluna; a mentora recebe 403 em todas as rotas, como no servidor)
-
-  const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'lost', 'converted'];
-  const LEAD_EDITABLE = ['new', 'contacted', 'qualified', 'lost'];
-  const OPEN_LEAD = ['new', 'contacted', 'qualified'];
-  const ACTIVITY_KINDS = ['note', 'call', 'email', 'meeting', 'whatsapp'];
-  const CONVERT_STAGES = ['arrived', 'talking', 'proposal'];
-  const STATUS_PT = { new: 'Novo', contacted: 'Contatado', qualified: 'Qualificado', lost: 'Perdido', converted: 'Convertido' };
-  const TEMP_PT = { cold: 'Frio', warm: 'Morno', hot: 'Quente' };
-  const leadDto = withoutOwner;
-  const activityDto = withoutOwner;
-  const LEAD_VERSION_CONFLICT = 'Este lead foi alterado em outra aba ou outro dispositivo. Recarregue a lista e tente de novo.';
-
-  const LEAD_QUERY = {
-    q: 'text',
-    status: { enum: LEAD_STATUSES, message: 'Situação inválida.' },
-    temperature: { enum: TEMPERATURES, message: 'Temperatura inválida.' },
-    source: { pattern: SOURCE_KEY, message: 'Origem inválida.' },
-    sort: { enum: ['created_at', 'name', 'last_activity', 'value'] },
-    order: { enum: ['asc', 'desc'] },
-    ...PAGING,
-  };
-
-  function leadSummary(u) {
-    const rows = mine(db.leads, u);
-    const byStatus = Object.fromEntries(LEAD_STATUSES.map((s) => [s, rows.filter((l) => l.status === s).length]));
-    const open = rows.filter((l) => OPEN_LEAD.includes(l.status));
-    return {
-      total: rows.length,
-      byStatus,
-      hot: open.filter((l) => l.temperature === 'hot').length,
-      estimatedValue: fromCents(open.reduce((sum, l) => sum + (l.estimatedValue ? toCents(l.estimatedValue) : 0), 0)),
-    };
-  }
-
-  function readLeadNotes(value, issues) {
-    if (value === undefined) return undefined;
-    if (value === null) return null;
-    if (typeof value !== 'string') return void issues.add('notes', 'Dados inválidos.');
-    const s = value.trim();
-    if (s.length > 1000) return void issues.add('notes', 'Observações muito longas (máximo 1000).');
-    if (NOTES_CONTROL_CHARS.test(s)) return void issues.add('notes', 'As observações contêm caracteres inválidos.');
-    return s === '' ? null : s;
-  }
-
-  /** Lê os campos comuns de criação/edição. `patch`: ausente continua ausente. */
-  function readLeadFields(b, issues, { patch, owner, currentSource }) {
-    const out = {};
-    if (b.name !== undefined || !patch) out.name = readName(b.name, 'Informe o nome do lead.', issues);
-    const company = readOptional(b.company, 'company', 120, 'Empresa muito longa (máximo 120).', issues);
-    const jobTitle = readOptional(b.jobTitle, 'jobTitle', 120, 'Cargo muito longo (máximo 120).', issues);
-    if (company !== undefined) out.company = company;
-    else if (!patch) out.company = null;
-    if (jobTitle !== undefined) out.jobTitle = jobTitle;
-    else if (!patch) out.jobTitle = null;
-    for (const [field, normalize] of [['email', normalizeEmail], ['whatsapp', normalizeWhatsapp], ['instagram', normalizeInstagram]]) {
-      const value = readContact(normalize, b[field], field, issues, { patch });
-      if (value !== undefined) out[field] = value;
-    }
-    if (b.source !== undefined) {
-      if (!allowedSource(owner, b.source, currentSource)) issues.add('source', 'Origem inválida.');
-      else out.source = b.source;
-    } else if (!patch) {
-      out.source = 'other';
-      if (!allowedSource(owner, 'other')) issues.add('source', 'Origem inválida.');
-    }
-    if (b.status !== undefined) {
-      if (!LEAD_EDITABLE.includes(b.status)) issues.add('status', 'Situação inválida. Um lead vira "convertido" ao criar a oportunidade.');
-      else out.status = b.status;
-    } else if (!patch) out.status = 'new';
-    if (b.temperature !== undefined) {
-      if (!TEMPERATURES.includes(b.temperature)) issues.add('temperature', 'Temperatura inválida.');
-      else out.temperature = b.temperature;
-    } else if (!patch) out.temperature = 'warm';
-    if (b.estimatedValue !== undefined) out.estimatedValue = b.estimatedValue === null ? null : readMoney(b.estimatedValue, issues, 'estimatedValue');
-    else if (!patch) out.estimatedValue = null;
-    const notes = readLeadNotes(b.notes, issues);
-    if (notes !== undefined) out.notes = notes;
-    else if (!patch) out.notes = null;
-    return out;
-  }
-
-  function addLeadActivity(u, leadId, kind, body, occurredAt) {
-    const at = stamp();
-    const row = { id: newId(), ownerId: u.id, leadId, kind, body, occurredAt: occurredAt ?? at, createdAt: at };
-    db.leadActivities.push(row);
-    const lead = db.leads.find((l) => l.id === leadId);
-    if (lead.lastActivityAt < row.occurredAt) replaceRow(db.leads, leadId, { ...lead, lastActivityAt: row.occurredAt });
-    return row;
-  }
-
-  function listLeads(searchParams) {
-    const u = requireStudent();
-    const query = readQuery(searchParams, LEAD_QUERY, { sort: 'created_at', order: 'desc', ...PAGING_DEFAULTS });
-    let rows = mine(db.leads, u);
-    if (query.status) rows = rows.filter((l) => l.status === query.status);
-    if (query.temperature) rows = rows.filter((l) => l.temperature === query.temperature);
-    if (query.source) rows = rows.filter((l) => l.source === query.source);
-    if (query.q) {
-      const text = fold(query.q);
-      const digits = query.q.replace(/\D/g, '');
-      rows = rows.filter(
-        (l) =>
-          fold(l.name).includes(text) ||
-          fold(l.company ?? '').includes(text) ||
-          (l.email ?? '').toLowerCase().includes(text) ||
-          (l.instagram ?? '').toLowerCase().includes(text) ||
-          (digits.length >= 3 && (l.whatsapp ?? '').includes(digits)),
-      );
-    }
-    const keys = {
-      created_at: (l) => l.createdAt,
-      name: (l) => l.name.toLowerCase(),
-      last_activity: (l) => l.lastActivityAt,
-      value: (l) => (l.estimatedValue ? toCents(l.estimatedValue) : null),
-    };
-    rows = sortRows(rows, keys[query.sort], query.order, query.sort === 'name' ? { compare: byText } : { nullsLast: query.sort === 'value' });
-    const result = paginate(rows, query);
-    return { status: 200, body: { ...result, data: result.data.map(leadDto), summary: leadSummary(u) } };
-  }
-
-  function findLead(u, id) {
-    const row = findOwned(db.leads, u, id, 'Lead não encontrado.');
-    if (!row) throw Errors.notFound('Lead não encontrado.');
-    return row;
-  }
-
-  function createLead(body) {
-    const u = requireStudent();
-    const b = requireBody(body);
-    const issues = createIssues();
-    onlyKeys(b, ['name', 'company', 'jobTitle', 'email', 'whatsapp', 'instagram', 'source', 'status', 'temperature', 'estimatedValue', 'notes'], issues);
-    const fields = readLeadFields(b, issues, { patch: false, owner: u });
-    issues.throwIfAny();
-    const at = stamp();
-    const row = { id: newId(), ownerId: u.id, ...fields, lastActivityAt: at, convertedAt: null, convertedPersonId: null, convertedDealId: null, version: 1, createdAt: at, updatedAt: at };
-    db.leads.push(row);
-    addLeadActivity(u, row.id, 'status_change', 'Lead criado.', at);
-    return { status: 201, body: leadDto(row) };
-  }
-
-  function getLead(id) {
-    const u = requireStudent();
-    const row = findLead(u, id);
-    const activityCount = db.leadActivities.filter((a) => a.leadId === row.id && a.ownerId === u.id).length;
-    return { status: 200, body: { ...leadDto(row), activityCount } };
-  }
-
-  function patchLead(id, body) {
-    const u = requireStudent();
-    if (!UUID.test(id)) throw Errors.notFound('Lead não encontrado.');
-    const b = requireBody(body);
-    const issues = createIssues();
-    const FIELDS = ['name', 'company', 'jobTitle', 'email', 'whatsapp', 'instagram', 'source', 'status', 'temperature', 'estimatedValue', 'notes'];
-    onlyKeys(b, [...FIELDS, 'version'], issues);
-    const patch = readLeadFields(b, issues, { patch: true, owner: u, currentSource: db.leads.find((l) => l.id === id && l.ownerId === u.id)?.source });
-    const version = readVersion(b.version, issues);
-    if (!FIELDS.some((k) => b[k] !== undefined)) issues.add('', 'Informe ao menos um campo para alterar.');
-    issues.throwIfAny();
-
-    const row = findLead(u, id);
-    if (row.version !== version) throw Errors.conflict('version_conflict', LEAD_VERSION_CONFLICT);
-    if (row.status === 'converted' && patch.status !== undefined) {
-      throw Errors.conflict('lead_converted', 'Este lead já virou oportunidade; a situação dele não pode mais ser alterada.');
-    }
-    replaceRow(db.leads, id, { ...row, ...patch, version: row.version + 1, updatedAt: stamp() });
-    if (patch.status !== undefined && patch.status !== row.status) {
-      addLeadActivity(u, id, 'status_change', `Situação alterada de ${STATUS_PT[row.status]} para ${STATUS_PT[patch.status]}.`);
-    }
-    if (patch.temperature !== undefined && patch.temperature !== row.temperature) {
-      addLeadActivity(u, id, 'status_change', `Temperatura alterada de ${TEMP_PT[row.temperature]} para ${TEMP_PT[patch.temperature]}.`);
-    }
-    return getLead(id);
-  }
-
-  function deleteLead(id) {
-    const u = requireStudent();
-    const row = findLead(u, id);
-    db.leads = db.leads.filter((l) => l.id !== row.id);
-    db.leadActivities = db.leadActivities.filter((a) => a.leadId !== row.id); // ON DELETE CASCADE
-    return { status: 204 };
-  }
-
-  function listLeadActivities(id, searchParams) {
-    const u = requireStudent();
-    const row = findLead(u, id);
-    const query = readQuery(searchParams, PAGING, PAGING_DEFAULTS);
-    const rows = db.leadActivities
-      .filter((a) => a.leadId === row.id && a.ownerId === u.id)
-      .sort((a, b) => cmp(b.occurredAt, a.occurredAt) || cmp(b.createdAt, a.createdAt) || cmp(a.id, b.id));
-    const result = paginate(rows, query);
-    return { status: 200, body: { ...result, data: result.data.map(activityDto) } };
-  }
-
-  function createLeadActivity(id, body) {
-    const u = requireStudent();
-    if (!UUID.test(id)) throw Errors.notFound('Lead não encontrado.');
-    const b = requireBody(body);
-    const issues = createIssues();
-    onlyKeys(b, ['kind', 'body', 'occurredAt'], issues);
-    const kind = readEnum(b.kind, ACTIVITY_KINDS, 'kind', 'Tipo de atividade inválido.', issues);
-    let text;
-    if (typeof b.body !== 'string' || b.body.trim() === '') issues.add('body', 'Descreva a atividade.');
-    else if (b.body.trim().length > 1000) issues.add('body', 'Texto muito longo (máximo 1000).');
-    else if (NOTES_CONTROL_CHARS.test(b.body.trim())) issues.add('body', 'O texto contém caracteres inválidos.');
-    else text = b.body.trim();
-    let occurredAt;
-    if (b.occurredAt !== undefined) {
-      occurredAt = readInstant(b.occurredAt, 'occurredAt', 'Informe uma data válida.', issues);
-      if (occurredAt && Date.parse(occurredAt) > clock().getTime() + 5 * 60_000) issues.add('occurredAt', 'A data da atividade não pode estar no futuro.');
-    }
-    issues.throwIfAny();
-    const lead = findLead(u, id);
-    const created = addLeadActivity(u, lead.id, kind, text, occurredAt);
-    awardXp(u, 'lead_activity', `lead-activity:${created.id}`); // +3 XP (teto de 15 por dia), sem aviso na tela
-    return { status: 201, body: activityDto(created) };
-  }
-
-  function deleteLeadActivity(id, activityId) {
-    const u = requireStudent();
-    const lead = findLead(u, id);
-    const row = UUID.test(activityId) ? db.leadActivities.find((a) => a.id === activityId && a.leadId === lead.id && a.ownerId === u.id) : null;
-    if (!row) throw Errors.notFound('Atividade não encontrada.');
-    db.leadActivities = db.leadActivities.filter((a) => a.id !== row.id);
-    const remaining = db.leadActivities.filter((a) => a.leadId === lead.id).map((a) => a.occurredAt).sort();
-    replaceRow(db.leads, lead.id, { ...lead, lastActivityAt: remaining.at(-1) ?? lead.createdAt });
-    return { status: 204 };
-  }
-
-  function convertLead(id, body) {
-    const u = requireStudent();
-    if (!UUID.test(id)) throw Errors.notFound('Lead não encontrado.');
-    const b = body === undefined ? {} : requireBody(body);
-    const issues = createIssues();
-    onlyKeys(b, ['dealStage', 'value'], issues);
-    let stage = 'arrived';
-    if (b.dealStage !== undefined) stage = readEnum(b.dealStage, CONVERT_STAGES, 'dealStage', 'Etapa inválida.', issues);
-    const value = b.value === undefined ? undefined : readMoney(b.value, issues, 'value');
-    issues.throwIfAny();
-
-    const lead = findLead(u, id);
-    if (lead.status === 'converted') throw Errors.conflict('already_converted', 'Este lead já virou oportunidade.');
-    const finalValue = value ?? lead.estimatedValue ?? undefined;
-    if (finalValue === undefined) throw Errors.validation([{ field: 'value', message: 'Informe o valor da oportunidade.' }]);
-
-    const people = mine(db.people, u);
-    let person = lead.whatsapp ? people.find((p) => p.whatsapp === lead.whatsapp) : undefined;
-    if (!person && lead.email) person = people.find((p) => p.email === lead.email);
-    const personCreated = !person;
-    const at = stamp();
-    if (!person) {
-      person = { id: newId(), ownerId: u.id, name: lead.name, whatsapp: lead.whatsapp, instagram: lead.instagram, email: lead.email, source: lead.source, companyId: null, createdAt: at, updatedAt: at, version: 1 };
-      db.people.push(person);
-    }
-    const deal = {
-      id: newId(), ownerId: u.id, personId: person.id, productId: null, value: finalValue, stage, temperature: lead.temperature,
-      lostReason: null, openedAt: at, closedAt: null, expectedCloseOn: null, notes: null, createdAt: at, updatedAt: at, version: stage === 'arrived' ? 1 : 2,
-    };
-    db.deals.push(deal);
-    if (stage !== 'arrived') db.dealHistory.push({ id: newId(), ownerId: u.id, dealId: deal.id, fromStage: 'arrived', toStage: stage, changedAt: at });
-    replaceRow(db.leads, id, { ...lead, status: 'converted', convertedAt: at, convertedPersonId: person.id, convertedDealId: deal.id, version: lead.version + 1, updatedAt: at });
-    addLeadActivity(u, id, 'status_change', personCreated ? 'Convertido em oportunidade.' : 'Convertido em oportunidade (pessoa já cadastrada reaproveitada).');
-    const xp = awardXp(u, 'lead_converted', `lead-converted:${id}`); // +30 XP
-    return { status: 201, body: withXp({ lead: getLead(id).body, personId: person.id, dealId: deal.id, personCreated }, xp) };
-  }
-
-  // ---- clientes (derivados: pessoa com ao menos uma oportunidade ganha)
-
-  const CLIENT_QUERY = {
-    q: 'text',
-    sort: { enum: ['name', 'customerSince'] },
-    order: { enum: ['asc', 'desc'] },
-    ...PAGING,
-  };
-
-  function listClients(searchParams) {
-    const u = requireAuth();
-    const query = readQuery(searchParams, CLIENT_QUERY, { sort: 'name', order: 'asc', ...PAGING_DEFAULTS });
-    const products = new Map(mine(db.products, u).map((p) => [p.id, p]));
-    const won = mine(db.deals, u).filter((d) => d.stage === 'won');
-    let rows = [];
-    for (const person of mine(db.people, u)) {
-      const own = won.filter((d) => d.personId === person.id);
-      if (!own.length) continue;
-      const names = [...new Set(own.map((d) => products.get(d.productId)?.name).filter(Boolean))].sort(byText);
-      rows.push({
-        id: person.id,
-        name: person.name,
-        whatsapp: person.whatsapp,
-        instagram: person.instagram,
-        email: person.email,
-        productsPurchased: names,
-        totalValue: fromCents(own.reduce((n, d) => n + toCents(d.value), 0)),
-        customerSince: own.map((d) => d.closedAt).sort()[0],
-        latestWonDealId: [...own].sort((a, b) => (a.closedAt < b.closedAt ? 1 : a.closedAt > b.closedAt ? -1 : a.id < b.id ? -1 : 1))[0].id,
-      });
-    }
-    if (query.q) rows = rows.filter((c) => fold(c.name).includes(fold(query.q)));
-    rows = query.sort === 'name'
-      ? sortRows(rows, (c) => c.name.toLowerCase(), query.order, { compare: byText })
-      : sortRows(rows, (c) => c.customerSince, query.order);
-    return { status: 200, body: paginate(rows, query) };
   }
 
   // ---- mentora: painel e alunas
@@ -2595,6 +1867,8 @@ export function createDemoApi(options = {}) {
     /^#\/$/,
     /^#\/(tarefas|calendario|perfil|configuracoes|alunas|leads|pessoas|oportunidades|empresas|ajuda|notificacoes|metas|progresso|conquistas|desafios|gestao\/conquistas|gestao\/desafios)$/,
     /^#\/(alunas|leads|oportunidades|empresas|desafios)\/[0-9a-f-]{36}$/i,
+    /^#\/comercial(\/(contatos|pipeline|atividades))?$/,
+    /^#\/comercial\/(contatos|oportunidades)\/[0-9a-f-]{36}$/i,
   ];
   const clip = (text, max) => {
     const chars = [...String(text).trim()];
@@ -2731,17 +2005,14 @@ export function createDemoApi(options = {}) {
     const people = mine(db.people, u);
     const companyOf = (p) => db.companies.find((c) => c.id === p.companyId && c.ownerId === u.id);
     const personName = (id) => people.find((p) => p.id === id)?.name;
-    const stageLabel = (key) => db.pipelineConfig[u.id]?.find((s) => s.key === key)?.label ?? DEFAULT_PIPELINE.find((s) => s.key === key)?.label ?? key;
+    const stageOf = (d) => db.funnelStages.find((st) => st.id === d.stageId)?.name;
+    // Central Comercial: contatos (antes Pessoas e Leads), oportunidades e clientes abrem nas rotas novas.
     const wonByPerson = new Map();
     for (const d of mine(db.deals, u).filter((x) => x.stage === 'won')) wonByPerson.set(d.personId, [...(wonByPerson.get(d.personId) ?? []), d]);
     const groups = [
-      ['people', 'Pessoas', people
-        .filter((p) => matches(p.name, needle) || (p.email ?? '').includes(needle) || (p.instagram ?? '').includes(needle) || matches(companyOf(p)?.name, needle) || (phone && (p.whatsapp ?? '').includes(phone)))
-        .map((p) => ({ id: p.id, title: p.name, subtitle: joinParts([companyOf(p)?.name, p.email ?? p.instagram]), link: `#/pessoas?q=${encodeURIComponent(p.name)}` }))
-        .sort(byName)],
-      ['leads', 'Leads', mine(db.leads, u)
-        .filter((l) => matches(l.name, needle) || matches(l.company, needle) || (l.email ?? '').includes(needle) || (l.instagram ?? '').includes(needle) || (phone && (l.whatsapp ?? '').includes(phone)))
-        .map((l) => ({ id: l.id, title: l.name, subtitle: joinParts([l.company, l.email]), link: `#/leads/${l.id}` }))
+      ['people', 'Contatos', people
+        .filter((p) => matches(p.name, needle) || (p.email ?? '').includes(needle) || (p.instagram ?? '').includes(needle) || matches(companyOf(p)?.name, needle) || (phone && ((p.whatsapp ?? '').includes(phone) || (p.phone ?? '').includes(phone))))
+        .map((p) => ({ id: p.id, title: p.name, subtitle: joinParts([companyOf(p)?.name, p.email ?? p.instagram]), link: `#/comercial/contatos/${p.id}` }))
         .sort(byName)],
       ['companies', 'Empresas', mine(db.companies, u)
         .filter((c) => matches(c.name, needle) || matches(c.city, needle))
@@ -2750,7 +2021,7 @@ export function createDemoApi(options = {}) {
       ['deals', 'Oportunidades', mine(db.deals, u)
         .filter((d) => matches(personName(d.personId), needle))
         .sort((a, b) => cmp(b.createdAt, a.createdAt) || cmp(a.id, b.id))
-        .map((d) => ({ id: d.id, title: personName(d.personId), subtitle: joinParts([stageLabel(d.stage), brl.format(Number(d.value))]), link: `#/oportunidades/${d.id}` }))],
+        .map((d) => ({ id: d.id, title: personName(d.personId), subtitle: joinParts([stageOf(d), brl.format(Number(d.value))]), link: `#/comercial/oportunidades/${d.id}` }))],
       ['tasks', 'Tarefas', mine(db.tasks, u)
         .filter((t) => matches(t.title, needle) || matches(personName(t.personId), needle))
         .sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done') || cmp(a.dueAt ?? '9', b.dueAt ?? '9') || cmp(a.id, b.id))
@@ -2759,13 +2030,10 @@ export function createDemoApi(options = {}) {
         .filter((p) => !p.archivedAt && matches(p.name, needle))
         .map((p) => ({ id: p.id, title: p.name, subtitle: brl.format(Number(p.price)), link: `#/produtos?q=${encodeURIComponent(p.name)}` }))
         .sort(byName)],
+      // Cliente = contato com ao menos uma oportunidade ganha (derivado, como o estado `client` dos contatos).
       ['clients', 'Clientes', people
         .filter((p) => wonByPerson.has(p.id) && matches(p.name, needle))
-        .map((p) => {
-          const own = wonByPerson.get(p.id);
-          const latest = [...own].sort((a, b) => (a.closedAt < b.closedAt ? 1 : a.closedAt > b.closedAt ? -1 : cmp(a.id, b.id)))[0];
-          return { id: p.id, title: p.name, subtitle: `Total comprado: ${brl.format(Number(fromCents(own.reduce((n, d) => n + toCents(d.value), 0))))}`, link: `#/oportunidades/${latest.id}` };
-        })
+        .map((p) => ({ id: p.id, title: p.name, subtitle: `Total comprado: ${brl.format(Number(fromCents(wonByPerson.get(p.id).reduce((n, d) => n + toCents(d.value), 0))))}`, link: `#/comercial/contatos/${p.id}` }))
         .sort(byName)],
     ];
     return { status: 200, body: { q, data: groups.map(([group, label, items]) => ({ group, label, items: top(items) })).filter((g) => g.items.length) } };
@@ -2868,7 +2136,8 @@ export function createDemoApi(options = {}) {
     const inside = (iso) => iso != null && Date.parse(iso) >= start && Date.parse(iso) < end;
     if (metric === 'revenue') return fromCents(mine(db.deals, u).filter((d) => d.stage === 'won' && inside(d.closedAt)).reduce((n, d) => n + toCents(d.value), 0));
     if (metric === 'deals_won') return String(mine(db.deals, u).filter((d) => d.stage === 'won' && inside(d.closedAt)).length);
-    if (metric === 'new_leads') return String(mine(db.leads, u).filter((l) => inside(l.createdAt)).length);
+    // "Novos leads" = contatos cadastrados no mês (desde a Central Comercial, todo lead é um contato).
+    if (metric === 'new_leads') return String(mine(db.people, u).filter((p) => inside(p.createdAt)).length);
     if (metric === 'tasks_done') return String(mine(db.tasks, u).filter((t) => t.status === 'done' && inside(t.doneAt)).length);
     return String(mine(db.people, u).filter((p) => inside(p.createdAt)).length);
   }
@@ -3036,7 +2305,6 @@ export function createDemoApi(options = {}) {
   const reports = createReportsDemo({
     getDb: () => db, clock, requireStudent, readQuery, toCents, fromCents,
     levelName: (n) => LEVELS[n - 1]?.name ?? LEVELS[0].name,
-    stageLabels: (u) => new Map(DEFAULT_PIPELINE.map((s) => [s.key, db.pipelineConfig[u.id]?.find((x) => x.key === s.key)?.label ?? s.label])),
     effectiveSources,
     goalPace(u, tz) {
       const month = currentMonth(tz);
@@ -3069,9 +2337,32 @@ export function createDemoApi(options = {}) {
     issueInvite, inviteResult, cancelPending, invitesOf, sessionUserId: () => session?.userId ?? null, saveSession,
   });
 
+  // Financeiro: vendas, parcelas, pagamentos, estornos, a receber, visão financeira e números da mentora (ver mock-finance.js).
+  const finance = createFinanceDemo({
+    getDb: () => db, clock, stamp, newId, Errors, createIssues, requireBody, readVersion, readQuery, fold, isPlainObject, UUID, CONTROL_CHARS, MULTILINE_CONTROL_CHARS,
+    requireStudent, requireAuth,
+  });
+
+  // Marketing: campanhas, investimentos, Instagram, visão geral e números da mentora (ver mock-marketing.js).
+  const marketing = createMarketingDemo({
+    getDb: () => db, clock, stamp, newId, Errors, createIssues, requireBody, readVersion, readQuery, fold, UUID, CONTROL_CHARS, MULTILINE_CONTROL_CHARS,
+    requireStudent, requireAuth,
+  });
+
+  // Central Comercial: funis, oportunidades, contatos, linha do tempo, visão geral e números da mentora (ver mock-commercial.js).
+  const commercial = createCommercialDemo({
+    getDb: () => db, persist, clock, stamp, newId, Errors, createIssues, requireBody, onlyKeys, readVersion, readQuery, readName, readMoney, readInstant,
+    toCents, fromCents, fold, byText, sortRows, isPlainObject, UUID, CONTROL_CHARS, MULTILINE_CONTROL_CHARS, requireStudent, requireAuth, awardXp, withXp, allowedSource,
+    finance,
+    marketing,
+  });
+
   const SEG = '([^/]+)';
   const routes = [
     ...team.routes,
+    ...commercial.routes,
+    ...finance.routes,
+    ...marketing.routes,
     ...growth.routes,
     ...mentoriaPanel.routes,
     ...followupDemo.routes,
@@ -3135,20 +2426,7 @@ export function createDemoApi(options = {}) {
     ['PATCH', new RegExp(`^products/${SEG}$`), (m, _q, body) => patchProduct(m[1], body)],
     ['DELETE', new RegExp(`^products/${SEG}$`), (m) => archiveProduct(m[1])],
 
-    ['GET', /^people$/, (_m, q) => listPeople(q)],
-    ['POST', /^people$/, (_m, _q, body) => createPerson(body)],
-    ['GET', new RegExp(`^people/${SEG}$`), (m) => getPerson(m[1])],
-    ['PATCH', new RegExp(`^people/${SEG}$`), (m, _q, body) => patchPerson(m[1], body)],
-    ['DELETE', new RegExp(`^people/${SEG}$`), (m) => deletePerson(m[1])],
 
-    ['GET', /^deals$/, (_m, q) => listDeals(q)],
-    ['POST', /^deals$/, (_m, _q, body) => createDeal(body)],
-    ['GET', /^deals\/summary$/, (_m, q) => dealsSummary(q)],
-    ['GET', new RegExp(`^deals/${SEG}$`), (m) => getDeal(m[1])],
-    ['GET', new RegExp(`^deals/${SEG}/history$`), (m, q) => dealHistory(m[1], q)],
-    ['PATCH', new RegExp(`^deals/${SEG}$`), (m, _q, body) => patchDeal(m[1], body)],
-    ['DELETE', new RegExp(`^deals/${SEG}$`), (m) => deleteDeal(m[1])],
-    ['POST', new RegExp(`^deals/${SEG}/stage-transitions$`), (m, _q, body) => transitionDeal(m[1], body)],
 
     ['GET', /^notifications$/, (_m, q) => listNotifications(q)],
     ['POST', /^notifications\/read-all$/, (_m, _q, body) => readAllNotifications(body)],
@@ -3170,16 +2448,6 @@ export function createDemoApi(options = {}) {
     ['PATCH', new RegExp(`^tasks/${SEG}$`), (m, _q, body) => patchTask(m[1], body)],
     ['DELETE', new RegExp(`^tasks/${SEG}$`), (m) => deleteTask(m[1])],
 
-    ['GET', /^leads$/, (_m, q) => listLeads(q)],
-    ['POST', /^leads$/, (_m, _q, body) => createLead(body)],
-    ['GET', new RegExp(`^leads/${SEG}$`), (m) => getLead(m[1])],
-    ['PATCH', new RegExp(`^leads/${SEG}$`), (m, _q, body) => patchLead(m[1], body)],
-    ['DELETE', new RegExp(`^leads/${SEG}$`), (m) => deleteLead(m[1])],
-    ['GET', new RegExp(`^leads/${SEG}/activities$`), (m, q) => listLeadActivities(m[1], q)],
-    ['POST', new RegExp(`^leads/${SEG}/activities$`), (m, _q, body) => createLeadActivity(m[1], body)],
-    ['DELETE', new RegExp(`^leads/${SEG}/activities/${SEG}$`), (m) => deleteLeadActivity(m[1], m[2])],
-    ['POST', new RegExp(`^leads/${SEG}/convert$`), (m, _q, body) => convertLead(m[1], body)],
-    ['GET', /^clients$/, (_m, q) => listClients(q)],
 
     ['GET', /^companies$/, (_m, q) => listCompanies(q)],
     ['POST', /^companies$/, (_m, _q, body) => createCompany(body)],
@@ -3187,8 +2455,6 @@ export function createDemoApi(options = {}) {
     ['PATCH', new RegExp(`^companies/${SEG}$`), (m, _q, body) => patchCompany(m[1], body)],
     ['DELETE', new RegExp(`^companies/${SEG}$`), (m) => deleteCompany(m[1])],
 
-    ['GET', /^pipeline\/config$/, (_m, q) => getPipelineConfig(q)],
-    ['PUT', /^pipeline\/config$/, (_m, _q, body) => putPipelineConfig(body)],
 
     ['GET', /^mentora\/summary$/, (_m, q) => mentoraSummary(q)],
 

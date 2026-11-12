@@ -13,6 +13,9 @@ import { can } from '../lib/permissions.js';
 import { toast } from '../ui/toast.js';
 import { copyLinkDialog, linkDatesCheck, studentDialogBody, studentPayload, studentValidators } from './student-forms.js';
 import { mountStudentGrowth } from './student-growth.js';
+import { mountStudentCommercial } from './student-commercial.js';
+import { mountStudentFinance } from './student-finance.js';
+import { mountStudentMarketing } from './student-marketing.js';
 
 const INVITE_LABELS = { pending: 'Pendente', expired: 'Expirado', accepted: 'Aceito', cancelled: 'Cancelado' };
 const INVITE_TONES = { pending: 'warn', expired: 'bad', accepted: 'good', cancelled: 'neutral' };
@@ -131,12 +134,18 @@ export function renderStudentProfile({ root, session, api, navigate, params }) {
     eyebrow: html`Mentoria · <a class="back-link" href="#/alunas">← Minhas alunas</a>`,
     subtitle: html`<span id="profile-subtitle"></span>`,
     actions: html`<span class="profile-actions" id="profile-actions"></span>`,
-    content: html`<div id="profile-growth"></div><div id="profile-region" aria-live="off">${skeleton(4)}</div>`,
+    content: html`<div id="profile-growth"></div><div id="profile-commercial"></div><div id="profile-finance"></div><div id="profile-marketing"></div><div id="profile-region" aria-live="off">${skeleton(4)}</div>`,
   });
 
   const region = root.querySelector('#profile-region');
   const growthHost = root.querySelector('#profile-growth');
+  const commercialHost = root.querySelector('#profile-commercial');
+  const financeHost = root.querySelector('#profile-finance');
+  let disposeFinance = null;
+  const marketingHost = root.querySelector('#profile-marketing');
+  let disposeMarketing = null;
   let growth = null;
+  let disposeCommercial = null;
   const actionsEl = root.querySelector('#profile-actions');
   const subtitleEl = root.querySelector('#profile-subtitle');
   const heading = root.querySelector('h1');
@@ -176,6 +185,12 @@ export function renderStudentProfile({ root, session, api, navigate, params }) {
       // As seções de mentoria carregam sozinhas, uma vez por visita (uma recarga depois de uma ação não as refaz).
       if (!growth) {
         growth = mountStudentGrowth({ host: growthHost, api, student: data.student, can: (key) => can(session.state.user, key) });
+        // Indicadores comerciais (só números agregados): só para quem tem a permissão business.view.
+        if (can(session.state.user, 'business.view')) {
+          disposeCommercial = mountStudentCommercial({ host: commercialHost, api, studentId: data.student.id });
+          disposeFinance = mountStudentFinance({ host: financeHost, api, studentId: data.student.id });
+          disposeMarketing = mountStudentMarketing({ host: marketingHost, api, studentId: data.student.id });
+        }
         if (hashParam('sessao') === '1') {
           window.history.replaceState(null, '', `#/alunas/${encodeURIComponent(params.id)}`);
           growth.openSchedule();
@@ -355,6 +370,9 @@ export function renderStudentProfile({ root, session, api, navigate, params }) {
   return () => {
     disposed = true;
     growth?.dispose();
+    disposeCommercial?.();
+    disposeFinance?.();
+    disposeMarketing?.();
     disposeShell();
   };
 }

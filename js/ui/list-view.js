@@ -2,7 +2,7 @@ import { describeError } from '../lib/api.js';
 import { debounce } from '../lib/debounce.js';
 import { mount } from '../lib/dom.js';
 import { html } from '../lib/html.js';
-import { createRequestGuard, createRowLock, pageOffset, recoveryOffset, withFilters } from '../lib/list-state.js';
+import { createRequestGuard, createRowLock, normalizePage, pageOffset, recoveryOffset, withFilters } from '../lib/list-state.js';
 import { buildQuery, hashParam, pageInfo } from '../lib/query.js';
 import { alert, button, skeleton } from './components.js';
 import { openTrackedFormDialog } from './form-dialog.js';
@@ -125,7 +125,7 @@ export function createListLoader({ region, fallback, errorTitle, skeletonLines =
  * já carregada, sem pedir de novo à API. As ações por linha (`rowActions`) valem nos dois.
  */
 export function createListView({ api, region, search, endpoint, filters = {}, caption, columns, dense = false, empty, errorTitle, actions = {}, rowActions = {}, cards = null, view = 'table' }) {
-  // Vindo da busca global ("#/pessoas?q=Ana"), a lista já abre filtrada.
+  // Vindo da busca global ("#/comercial/contatos?q=Ana"), a lista já abre filtrada.
   const initialQ = search ? hashParam('q') : '';
   if (initialQ) search.value = initialQ;
   let state = { q: initialQ, ...filters, offset: 0 };
@@ -137,9 +137,10 @@ export function createListView({ api, region, search, endpoint, filters = {}, ca
     region,
     errorTitle,
     fallback: () => search,
-    fetchData: () => {
+    // Aceita `{ rows, total }` (Central Comercial) e `{ data, page }` (demais listas): ver normalizePage().
+    fetchData: async () => {
       const { offset, ...params } = state;
-      return api.get(`${endpoint}${buildQuery({ ...params, limit: LIMIT, offset })}`);
+      return normalizePage(await api.get(`${endpoint}${buildQuery({ ...params, limit: LIMIT, offset })}`), { limit: LIMIT, offset });
     },
     recover: (result) => {
       const offset = recoveryOffset(result, state.offset, LIMIT);

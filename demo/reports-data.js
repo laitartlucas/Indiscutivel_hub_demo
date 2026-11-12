@@ -7,7 +7,9 @@ const DAY = 24 * 60 * MINUTE;
 
 export const PERIODS = ['30d', 'quarter', '12m'];
 export const DAYS_BLOCK = 6;
-export const PATH = ['arrived', 'talking', 'proposal', 'won'];
+// Caminho comum a todos os funis (cada funil tem etapas próprias): criada -> avançou de etapa -> ganha (perdida não é etapa do caminho).
+export const PATH = ['created', 'advanced', 'won'];
+export const PATH_LABELS = { created: 'Criadas', advanced: 'Avançaram de etapa', won: 'Ganhas' };
 const MONTHS_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
 /** Mesmos limiares de server/src/domain/xp.ts (LEVELS). */
@@ -87,7 +89,6 @@ export function onTimeRate(onTime, withDue) {
 export function advancePct(previousCount, count) {
   return previousCount <= 0 ? null : Math.round((count / previousCount) * 100);
 }
-export const pathRank = (stage) => PATH.indexOf(stage);
 
 /** "Camila Duarte" -> "Camila D."; "Maria da Silva" -> "Maria S."; nome único fica como está (igual à função SQL). */
 export function displayName(fullName) {
