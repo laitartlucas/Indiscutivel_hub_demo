@@ -370,6 +370,8 @@ export function createMentoraDemo(d) {
           activeStudents: activeById.get(i.student.id),
           phase: d.phaseOf(i.student.id),
           phaseLabel: phaseLabel(d.phaseOf(i.student.id)),
+          // Faturamento autodeclarado: os campos só existem para quem tem `revenue.view`.
+          ...(d.revenueTotalsFor?.(i.student.id) ?? {}),
         })),
         page: { limit: query.limit, offset: query.offset, total: filtered.length },
         counts,
@@ -692,8 +694,10 @@ export function createMentoraDemo(d) {
   return {
     routes: [
       ['GET', /^mentora\/overview$/, (_m, q) => {
-        d.readQuery(q, {}, {});
-        return overview();
+        // Entrega 7: `period` (mês, trimestre, ano) só mexe nos campos novos (fases, desafios, check-ins, conquistas recentes).
+        const { period } = d.readQuery(q, { period: { enum: ['month', 'quarter', 'year'], message: 'Período inválido.' } }, { period: 'month' });
+        const result = overview();
+        return { ...result, body: { ...result.body, ...d.overviewExtras(period) } };
       }],
       ['GET', /^mentora\/students$/, (_m, q) => listStudents(q)],
       ['GET', new RegExp(`^mentora/students/${SEG}/growth$`), (m, q) => {

@@ -196,6 +196,9 @@ li[data-met='true'] .pw-mark::before { display: none; }
 /* ---------- estrutura do app (autenticado) ----------
    Valores do kit (components.css do design kit): sidebar verde, topbar clara, trilho de ícones até 1024 px,
    gaveta + barra inferior até 768 px. Os alvos de toque sobem para 44 px só no celular. */
+/* A faixa da barra de rolagem fica sempre reservada: quando o conteúdo cresce depois de carregar e a barra aparece, a largura
+   útil não muda (sem isso, os itens do topo "pulam" para a esquerda no meio da carga). */
+html:has(.shell) { scrollbar-gutter: stable; }
 .shell { display: flex; min-height: 100vh; min-height: 100dvh; background: var(--bg); }
 .shell-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .sidebar {
@@ -238,6 +241,8 @@ li[data-met='true'] .pw-mark::before { display: none; }
 
 /* trilho de ícones (escolha da usuária no desktop; fixo no tablet): só ícones, o texto continua para leitor de tela */
 .sidebar[data-collapsed='true'] { width: var(--sidebar-w-collapsed); }
+/* Trilho imposto pela largura da tela (tablet): muda na hora, sem animar (a animação fica para o botão "Recolher menu"). */
+.sidebar[data-instant='true'] { transition: none; }
 .sidebar[data-collapsed='true'] .sidebar-brand { padding: 0 22px; }
 .sidebar[data-collapsed='true'] .wordmark { display: none; }
 .sidebar[data-collapsed='true'] .sidebar-nav { padding: var(--space-4) 14px var(--space-2); }

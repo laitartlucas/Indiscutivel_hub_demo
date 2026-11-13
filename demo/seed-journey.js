@@ -42,7 +42,7 @@ export function buildJourneySeed({ now, users, challenges, enrollments }) {
   phase(3, 2, 110, 'Oferta clara e primeiras vendas recorrentes.');
   phase(3, 3, 60, null);
   phase(3, 4, 12, 'Equipe de duas pessoas e processos documentados. Foco agora é gestão.');
-  phase(4, 2, 70, 'Método validado com as clientes da clínica.');
+  phase(4, 2, 105, 'Método validado com as clientes da clínica.'); // sem mudança há mais de 90 dias (Relatórios › Alunas e fases)
   phase(5, 2, 80, null);
   phase(5, 1, 74, 'Voltando para a Fase 01: o lançamento foi adiado e o método ainda precisa de ajustes.');
   phase(6, 2, 20, 'Primeiros cases publicados.');

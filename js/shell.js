@@ -12,6 +12,7 @@ import { iaNavItem } from './ui/ia-link.js';
 import { mountTopbar, topbarSearchHtml, topbarToolsHtml } from './ui/topbar.js';
 import { refreshNotifications, resetNotifications } from './lib/notifications.js';
 
+// Ordem revista na Entrega 7 (sem mudança): cada item novo das Entregas 2–6 já está no grupo do seu assunto.
 // Menu da aluna: o Painel e a Central Comercial (contatos, pipeline, atividades e produtos, com abas próprias) no topo;
 // depois a Rotina (tarefas e agenda), Crescimento, Análises, Inteligência e Conta. "Comercial" é UM item só: as telas
 // dele (#/comercial/...) e Produtos acendem esse item (active: 'commercial').
@@ -25,6 +26,8 @@ const NAV_USER = [
   { id: 'calendar', label: 'Calendário', href: '#/calendario', icon: 'calendar', group: 'Rotina' },
   // Crescimento: metas do mês, desafios, conquistas, nível/XP e a evolução da comunidade (ranking opt-in). Análises: relatórios.
   { id: 'goals', label: 'Metas', href: '#/metas', icon: 'metas', group: 'Crescimento' },
+  // Faturamento autodeclarado e os marcos 10k/30k/50k/100k + PAD GOLD (fora da barra de baixo do celular).
+  { id: 'revenue', label: 'Meu faturamento', href: '#/faturamento', icon: 'gem', group: 'Crescimento', bottom: false },
   { id: 'challenges', label: 'Desafios', href: '#/desafios', icon: 'desafios', group: 'Crescimento', bottom: false },
   { id: 'achievements', label: 'Conquistas', href: '#/conquistas', icon: 'conquistas', group: 'Crescimento', bottom: false },
   { id: 'progress', label: 'Meu progresso', href: '#/progresso', icon: 'progresso', group: 'Crescimento', bottom: false },
@@ -40,12 +43,15 @@ const NAV_ADMIN = [
   { id: 'home', label: 'Painel', href: '#/', icon: 'dashboard' },
   { id: 'students', label: 'Minhas alunas', href: '#/alunas', icon: 'alunas', group: 'Mentoria', perm: 'students.view' },
   { id: 'followup', label: 'Acompanhamento', href: '#/acompanhamento', icon: 'acompanhamento', group: 'Mentoria', bottom: false, perm: 'followup.view' },
+  // Faturamento autodeclarado das alunas e os marcos (permissão própria: revenue.view).
+  { id: 'mentora-revenue', label: 'Faturamento das alunas', href: '#/faturamento-alunas', icon: 'gem', group: 'Mentoria', bottom: false, perm: 'revenue.view' },
   // Gestão de Desafios e Conquistas: catálogo e adesão, nunca dados de negócio das alunas.
   { id: 'mg-challenges', label: 'Desafios', href: '#/gestao/desafios', icon: 'desafios', group: 'Crescimento', bottom: false, perm: 'challenges.manage' },
   // Check-ins: o que as alunas registram por dia nos desafios (leitura sob students.view; o retorno pede challenges.manage).
   { id: 'mg-checkins', label: 'Check-ins', href: '#/gestao/checkins', icon: 'check', group: 'Crescimento', bottom: false, perm: 'students.view' },
   { id: 'mg-achievements', label: 'Conquistas', href: '#/gestao/conquistas', icon: 'conquistas', group: 'Crescimento', bottom: false, perm: 'achievements.manage' },
-  // Análises: relatórios da mentoria (só sinais de mentoria; nunca R$ nem CRM das alunas).
+  // Análises: relatórios da mentoria. Engajamento e jornada sob reports.view; as abas de faturamento (revenue.view) e de
+  // negócio (business.view, só números agregados por aluna, nunca clientes nem campanhas) aparecem só com a permissão delas.
   { id: 'mentora-reports', label: 'Relatórios', href: '#/relatorios-mentoria', icon: 'relatorios', group: 'Análises', bottom: false, perm: 'reports.view' },
   // IA Indiscutível: só a proprietária (owner exclui a equipe); link externo, sem aria-current.
   { id: 'ia', label: 'IA Indiscutível', href: IA_INDISCUTIVEL_URL, icon: 'ia', group: 'Inteligência', bottom: false, owner: true, external: true },
@@ -160,9 +166,15 @@ export function renderShell({ root, session, navigate, active, heading, eyebrow,
   }
 
   // Trilho de ícones: escolha da usuária no desktop, forçado no tablet; na gaveta (celular) o menu é sempre completo.
-  function syncRail() {
+  function syncRail({ animate = false } = {}) {
     const fixedRail = tablet.matches && !mq.matches;
     const rail = !mq.matches && (collapsedPref || fixedRail);
+    // Só o clique em "Recolher menu" anima a largura. Mudança pela largura da tela é na hora: o topo não fica se mexendo
+    // (e nada é medido no meio da animação).
+    if (!animate) {
+      sidebar.dataset.instant = 'true';
+      requestAnimationFrame(() => requestAnimationFrame(() => delete sidebar.dataset.instant));
+    }
     sidebar.dataset.collapsed = String(rail);
     collapse.hidden = mq.matches || fixedRail;
     collapse.setAttribute('aria-label', rail ? 'Expandir menu' : 'Recolher menu');
@@ -182,7 +194,7 @@ export function renderShell({ root, session, navigate, active, heading, eyebrow,
   collapse.addEventListener('click', () => {
     collapsedPref = !collapsedPref;
     saveCollapsed(collapsedPref);
-    syncRail();
+    syncRail({ animate: true });
   });
   toggle.addEventListener('click', () => setOpen(sidebar.dataset.open !== 'true', { restoreFocus: true }));
   scrim.addEventListener('click', () => setOpen(false, { restoreFocus: true }));
@@ -253,7 +265,8 @@ export function renderShell({ root, session, navigate, active, heading, eyebrow,
   };
   document.addEventListener('keydown', onKey);
   mq.addEventListener('change', onChange);
-  tablet.addEventListener('change', syncRail);
+  const onTablet = () => syncRail();
+  tablet.addEventListener('change', onTablet);
 
   return () => {
     stopBadge();
@@ -264,6 +277,6 @@ export function renderShell({ root, session, navigate, active, heading, eyebrow,
     main.inert = false;
     bottomNav.inert = false;
     mq.removeEventListener('change', onChange);
-    tablet.removeEventListener('change', syncRail);
+    tablet.removeEventListener('change', onTablet);
   };
 }

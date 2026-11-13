@@ -9,6 +9,8 @@ const DAY = 24 * HOUR;
 
 const fixedId = (kind, n) => `${kind}-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const ymd = (ms) => new Date(ms).toISOString().slice(0, 10);
+/** Número fixo do id de cada conquista padrão (os de 2 e 3 eram as antigas sales-10k e sales-50k, que saíram do catálogo). */
+const ACHIEVEMENT_N = { 'first-sale': 1, 'tasks-25': 4, 'tasks-100': 5, 'streak-7': 6, 'streak-30': 7, 'funnel-alive': 8, 'network-25': 9, 'goal-1': 10, 'level-5': 11, 'challenge-1': 12 };
 
 /**
  * @param {{ now: Date, owner: string, users: any[], addXp: (kind: string, key: string, at: string, points?: number) => void }} input
@@ -23,7 +25,7 @@ export function buildGrowthSeed({ now, owner, users, addXp }) {
   const students = users.filter((u) => u.role === 'user');
 
   const achievements = SEED_ACHIEVEMENTS.map((s, i) => ({
-    id: fixedId('f0000000', i + 1), mentoraId, seedKey: s.key, title: s.title, description: s.description, category: s.category,
+    id: fixedId('f0000000', ACHIEVEMENT_N[s.key]), mentoraId, seedKey: s.key, title: s.title, description: s.description, category: s.category,
     ruleKind: s.ruleKind, ruleValue: s.ruleValue, xpReward: s.xpReward, active: true, archivedAt: null, version: 1, createdAt: ago(300 * DAY - i * MIN),
   }));
   const voice = {
@@ -104,7 +106,6 @@ export function buildGrowthSeed({ now, owner, users, addXp }) {
   [0, 1, 2].forEach((i) => unlock(others[i], 'goal-1', 60 - i * 5));
   unlock(others[0], 'streak-7', 33);
   [0, 1, 3].forEach((i) => unlock(others[i], 'challenge-1', 20 - i));
-  [0, 2].forEach((i) => unlock(others[i], 'sales-10k', 45 - i * 4));
   [0, 1].forEach((i) => unlock(others[i], 'tasks-25', 50 - i * 6));
   [0, 1, 2].forEach((i) => unlock(others[i], 'network-25', 70 - i * 7));
   [0, 1].forEach((i) => unlock(others[i], 'level-5', 30 - i * 2));

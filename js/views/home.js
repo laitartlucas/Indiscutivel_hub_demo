@@ -35,6 +35,20 @@ import { isPhase, phaseLabel, phaseNumber } from '../lib/journey.js';
 import { sessionLine } from '../lib/mentora.js';
 import { applySizes } from '../lib/widths.js';
 import {
+  commercialIsEmpty,
+  commercialItems,
+  financeIsEmpty,
+  financeItems,
+  isBusinessPeriod,
+  marketingIsEmpty,
+  marketingItems,
+  topFunnelsByRevenue,
+  topSources,
+} from '../lib/business.js';
+import { formatCount, rangeLabel as marketingRange } from '../lib/marketing.js';
+import { sourceLabel } from '../lib/sources.js';
+import { barList, bindFilter, emptyGroup, filterBar, kpiGroup, readSaved, retryBlock, saveChoice } from './business-ui.js';
+import {
   formatResetDate,
   loadSecurityNotice,
   readDismissedResetNotice,
@@ -219,6 +233,102 @@ function renderResetNotice(passwordResetAt) {
   </div>`;
 }
 
+// ---------- Meu negócio (Entrega 7): Comercial, Financeiro e Marketing do período, cada um com os números do seu módulo ----------
+
+const BUSINESS_PERIOD_KEY = 'ih:business-period';
+
+function businessCommercial(o) {
+  if (commercialIsEmpty(o)) {
+    return emptyGroup({ id: 'biz-c', title: 'Comercial', message: 'Cadastre um contato ou abra uma oportunidade: leads, negociações e vendas fechadas aparecem aqui.', href: '#/comercial/contatos', actionLabel: 'Cadastrar contato' });
+  }
+  return kpiGroup({ id: 'biz-c', title: 'Comercial', href: '#/comercial', linkLabel: 'Abrir Comercial', items: commercialItems(o) });
+}
+
+function businessFinance(o) {
+  if (financeIsEmpty(o)) {
+    return emptyGroup({ id: 'biz-f', title: 'Financeiro', message: 'Registre a venda de uma oportunidade ganha: contratado, recebido e o que falta receber aparecem aqui.', href: '#/comercial/vendas', actionLabel: 'Ver vendas' });
+  }
+  return kpiGroup({ id: 'biz-f', title: 'Financeiro', href: '#/comercial/vendas', linkLabel: 'Ver vendas', items: financeItems(o), note: 'Fechar não é receber: o recebido vem só dos pagamentos lançados.' });
+}
+
+function businessMarketing(o, activeCampaigns) {
+  if (marketingIsEmpty(o, activeCampaigns)) {
+    return emptyGroup({ id: 'biz-m', title: 'Marketing', message: 'Crie uma campanha ou lance um investimento: CPL, CAC e ROAS aparecem aqui.', href: '#/marketing/campanhas', actionLabel: 'Criar campanha' });
+  }
+  const sources = topSources(o?.bySource);
+  const funnels = topFunnelsByRevenue(o?.byFunnel);
+  const maxLeads = Math.max(0, ...sources.map((s) => Number(s.leads) || 0));
+  const extra = html`<div class="biz-tops">
+    <div><h4 class="fin-mini-title">Leads por origem</h4>${sources.length
+      ? barList({ caption: 'As 3 origens com mais leads no período', valueHeader: 'Leads', fill: 'mk-fill', rows: sources.map((s) => ({ label: sourceLabel(s.source), value: formatCount(s.leads), width: maxLeads ? Math.max(4, Math.round((Number(s.leads) / maxLeads) * 100)) : 0 })) })
+      : html`<p class="muted od-none">Nenhum lead no período.</p>`}</div>
+    <div><h4 class="fin-mini-title">Funis com mais receita</h4>${funnels.length
+      ? html`<ol class="biz-rank">${funnels.map((f) => html`<li><span class="biz-rank-name">${f.name}</span><span class="biz-rank-value">${formatMoney(f.revenue ?? '0.00')}<span class="biz-rank-sub">${plural(Number(f.sales) || 0, 'venda', 'vendas')}</span></span></li>`)}</ol>`
+      : html`<p class="muted od-none">Nenhuma venda atribuída a funil no período.</p>`}</div>
+  </div>`;
+  return kpiGroup({ id: 'biz-m', title: 'Marketing', href: '#/marketing', linkLabel: 'Abrir Marketing', items: marketingItems(o, activeCampaigns), extra });
+}
+
+function mountBusiness({ host, api, isDisposed }) {
+  let period = readSaved(BUSINESS_PERIOD_KEY, isBusinessPeriod, 'month');
+  let seq = 0;
+  const filterHost = host.querySelector('#biz-filter');
+  const rangeEl = host.querySelector('#biz-range');
+  const el = { commercial: host.querySelector('#biz-commercial'), finance: host.querySelector('#biz-finance'), marketing: host.querySelector('#biz-marketing') };
+  const LABELS = { commercial: 'Comercial', finance: 'Financeiro', marketing: 'Marketing' };
+
+  const loaders = {
+    commercial: async () => {
+      const o = await api.get(`/api/v1/commercial/overview${buildQuery({ period })}`);
+      rangeEl.textContent = o?.period?.from ? `Período: ${marketingRange(o.period.from, o.period.to)}` : '';
+      return businessCommercial(o);
+    },
+    finance: async () => businessFinance(await api.get(`/api/v1/finance/overview${buildQuery({ period })}`)),
+    marketing: async () => {
+      const o = await api.get(`/api/v1/marketing/overview${buildQuery({ period })}`);
+      return businessMarketing(o, o?.activeCampaigns);
+    },
+  };
+
+  function loadOne(which, mine) {
+    const target = el[which];
+    target.setAttribute('aria-busy', 'true');
+    mount(target, skeleton(3));
+    loaders[which]().then(
+      (view) => {
+        if (isDisposed() || mine !== seq) return;
+        mount(target, view);
+        applySizes(target);
+        target.setAttribute('aria-busy', 'false');
+      },
+      () => {
+        if (isDisposed() || mine !== seq) return;
+        mount(target, html`<section class="lead-card biz-group" aria-label="${LABELS[which]}">${retryBlock(`Não foi possível carregar o ${LABELS[which]} agora.`, which, LABELS[which])}</section>`);
+        target.setAttribute('aria-busy', 'false');
+      },
+    );
+  }
+
+  function loadAll() {
+    const mine = ++seq;
+    for (const which of Object.keys(el)) loadOne(which, mine);
+  }
+
+  bindFilter(filterHost, () => ({ period, month: '' }), (next, focusSelector) => {
+    period = next.period;
+    saveChoice(BUSINESS_PERIOD_KEY, period);
+    mount(filterHost, filterBar({ prefix: 'biz', filter: { period, month: '' } }));
+    filterHost.querySelector(focusSelector)?.focus();
+    loadAll();
+  });
+  host.addEventListener('click', (event) => {
+    const retry = event.target.closest('[data-action="retry"][data-which]');
+    if (retry && Object.hasOwn(el, retry.dataset.which)) loadOne(retry.dataset.which, seq);
+  });
+  mount(filterHost, filterBar({ prefix: 'biz', filter: { period, month: '' } }));
+  loadAll();
+}
+
 export function renderHome({ root, session, api, navigate }) {
   const first = String(session.state.user?.name ?? '').trim().split(/\s+/)[0] ?? '';
   let disposed = false;
@@ -259,6 +369,16 @@ export function renderHome({ root, session, api, navigate }) {
           <section class="dash-card"><div class="dash-card-head"><h2>Produtos recentes</h2><a href="#/produtos">Ver todos</a></div><div id="dash-products-recent">${skeleton(3)}</div></section>
         </div>
       </div>
+      <section class="dash-card biz" id="dash-business" aria-labelledby="dash-business-title">
+        <div class="dash-card-head"><h2 id="dash-business-title">Meu negócio</h2><a href="#/relatorios">Ver relatórios</a></div>
+        <div class="biz-toolbar"><div id="biz-filter"></div><p class="muted biz-range" id="biz-range" aria-live="polite"></p></div>
+        <div class="biz-groups">
+          <div id="biz-commercial" aria-busy="true">${skeleton(3)}</div>
+          <div id="biz-finance" aria-busy="true">${skeleton(3)}</div>
+          <div id="biz-marketing" aria-busy="true">${skeleton(3)}</div>
+        </div>
+        <p class="rp-foot">Cada grupo traz os números do próprio módulo, no mesmo período, e eles não se somam: vendas fechadas (Comercial) são oportunidades ganhas, o recebido (Financeiro) vem só dos pagamentos lançados e o Marketing mostra o retorno do que você investiu. O faturamento que você declara fica à parte, em Meu faturamento.</p>
+      </section>
     </div>`,
   });
 
@@ -443,6 +563,7 @@ export function renderHome({ root, session, api, navigate }) {
   });
 
   retryTasks();
+  mountBusiness({ host: root.querySelector('#dash-business'), api, isDisposed: () => disposed });
 
   // Carga inicial: uma única leva com todas as chamadas em paralelo (`Promise.all` sobre `pack()` dentro
   // de `loadDashboard`) — só o retry acima busca uma peça isolada.

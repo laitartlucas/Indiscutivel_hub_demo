@@ -36,6 +36,8 @@ import { renderMentoraChallenges } from './views/mentora-challenges.js';
 import { renderMentoraChallengeDetail } from './views/mentora-challenge-detail.js';
 import { renderMentoraCheckins } from './views/mentora-checkins.js';
 import { renderMentoraReports } from './views/mentora-reports.js';
+import { renderMentoraRevenue } from './views/mentora-revenue.js';
+import { renderRevenue } from './views/revenue.js';
 import { renderHelp } from './views/help.js';
 import { renderLoading } from './views/loading.js';
 import { renderNotifications } from './views/notifications.js';
@@ -143,6 +145,7 @@ const VIEWS = {
   notifications: { render: renderNotifications, title: 'Notificações' },
   calendar: { render: renderCalendar, title: 'Calendário' },
   goals: { render: renderGoals, title: 'Metas' },
+  revenue: { render: renderRevenue, title: 'Meu faturamento' },
   progress: { render: renderProgress, title: 'Meu progresso' },
   ranking: { render: renderRanking, title: 'Evolução da comunidade' },
   reports: { render: renderReports, title: 'Relatórios' },
@@ -154,6 +157,7 @@ const VIEWS = {
   mentoraChallengeDetail: { render: renderMentoraChallengeDetail, title: 'Desafio' },
   mentoraCheckins: { render: renderMentoraCheckins, title: 'Check-ins' },
   followup: { render: renderFollowup, title: 'Acompanhamento' },
+  mentoraRevenue: { render: renderMentoraRevenue, title: 'Faturamento das alunas' },
   mentoraReports: { render: renderMentoraReports, title: 'Relatórios da mentoria' },
   team: { render: renderTeam, title: 'Equipe' },
   permissions: { render: renderPermissions, title: 'Permissões' },

@@ -4,7 +4,7 @@
 // server/src/routes/sales.ts e server/src/repositories/sales.ts), sobre o estado em memória. O dinheiro é calculado só em
 // finance-data.js (espelho de server/src/domain/finance.ts): nada derivado é gravado.
 import {
-  buildSalePlan, FINANCIAL_STATUSES, periodRange, fromCents, installmentRemainingCents, installmentStatus, isUpcoming, MAX_PLAN_INSTALLMENTS, PAYMENT_METHODS, refundableCents,
+  buildSalePlan, FINANCIAL_STATUSES, overviewQueryProblem, overviewRange, periodRange, fromCents, installmentRemainingCents, installmentStatus, isUpcoming, MAX_PLAN_INSTALLMENTS, PAYMENT_METHODS, refundableCents,
   renegotiationPlan, SALE_MODES, summarizeSale, toCents, todayInBrasilia,
 } from './finance-data.js';
 
@@ -608,23 +608,29 @@ export function createFinanceDemo(d) {
    * Recebido = pagamentos líquidos com data no período (de qualquer venda). A receber, vencido e `overdueCount` (parcelas
    * vencidas) = fotografia de hoje.
    */
-  function financeNumbers(u, period) {
-    const now = today();
-    const w = periodRange(now, period);
+  /** Contratado e quantidade (vendas ativas fechadas na janela) e recebido líquido (pagamentos com data na janela). `w` = { from, to }. */
+  function windowTotals(u, w, now) {
     const inPeriod = salesOf(u)
       .filter((s) => s.closedOn >= w.from && s.closedOn <= w.to)
       .map((s) => ({ s, sum: summary(s, now) }));
     const active = inPeriod.filter((x) => x.s.status === 'active');
     const ids = new Set(salesOf(u).map((s) => s.id));
     const received = table('payments').filter((p) => ids.has(p.saleId) && p.paidOn >= w.from && p.paidOn <= w.to).reduce((t, p) => t + toCents(p.amount), 0);
+    return { inPeriod, contracted: money(active.reduce((t, x) => t + toCents(finalValueOf(x.s)), 0)), salesCount: active.length, received: money(received) };
+  }
+
+  /** `w` = { from, to }: o período corrente ou um mês específico (Entrega 7). */
+  function financeNumbers(u, w) {
+    const now = today();
+    const { inPeriod, contracted, salesCount, received } = windowTotals(u, w, now);
     const rows = unpaid(u, now);
     const overdueRows = rows.filter((r) => r.status === 'overdue');
     const count = (status) => inPeriod.filter((x) => x.sum.financialStatus === status).length;
     return {
       period: w,
-      contracted: money(active.reduce((t, x) => t + toCents(finalValueOf(x.s)), 0)),
-      salesCount: active.length,
-      received: money(received),
+      contracted,
+      salesCount,
+      received,
       receivable: sumRemaining(rows),
       overdue: sumRemaining(overdueRows),
       overdueCount: overdueRows.length, // parcelas vencidas (contrato combinado com as telas)
@@ -632,17 +638,23 @@ export function createFinanceDemo(d) {
       partialCount: count('partial'),
       openCount: count('open'),
       cancelledCount: count('cancelled'),
+      // Contratos em aberto (Entrega 7): vendas ATIVAS ainda não quitadas (recebido líquido < valor final), de qualquer data. Fotografia de hoje.
+      openContracts: salesOf(u).filter((s) => s.status === 'active' && toCents(receivedOf(s)) < toCents(finalValueOf(s))).length,
       upcoming: rows.filter((r) => r.status !== 'overdue').slice(0, 5),
       overdueList: overdueRows.slice(0, 5),
     };
   }
 
   const PERIOD_QUERY = { period: { enum: PERIODS, message: 'Período inválido.' } };
+  // Visões gerais (Entrega 7): período corrente ou um mês específico AAAA-MM (o formato fino é conferido em overviewQueryProblem).
+  const OVERVIEW_QUERY = { ...PERIOD_QUERY, month: { pattern: /^.*$/ } };
 
   function overview(searchParams) {
     const u = d.requireStudent();
-    const { period } = readQuery(searchParams, PERIOD_QUERY, { period: 'month' });
-    return { status: 200, body: financeNumbers(u, period) };
+    const query = readQuery(searchParams, OVERVIEW_QUERY, {});
+    const problem = overviewQueryProblem(query, today());
+    if (problem) throw fieldError(problem.field, problem.message);
+    return { status: 200, body: financeNumbers(u, overviewRange(query, today())) };
   }
 
   /** Para a mentora (e a equipe com `business.view`): só números, nunca cliente, descrição, observação, motivo ou id de venda. */
@@ -651,14 +663,38 @@ export function createFinanceDemo(d) {
     const { period } = readQuery(searchParams, PERIOD_QUERY, { period: 'month' });
     const student = UUID.test(id) ? db().users.find((x) => x.id === id && x.role === 'user') : null;
     if (!student) throw Errors.notFound('Aluna não encontrada.');
-    const n = financeNumbers(student, period);
+    return { status: 200, body: mentoraBody(student, period) };
+  }
+
+  /** Corpo de GET /mentora/students/:id/finance (também usado, por aluna, em GET /mentora/business). */
+  function mentoraBody(student, period) {
+    const n = financeNumbers(student, periodRange(today(), period));
     return {
-      status: 200,
-      body: {
-        period: n.period, contracted: n.contracted, salesCount: n.salesCount, received: n.received, receivable: n.receivable, overdue: n.overdue,
-        overdueCount: n.overdueCount, settledCount: n.settledCount,
-      },
+      period: n.period, contracted: n.contracted, salesCount: n.salesCount, received: n.received, receivable: n.receivable, overdue: n.overdue,
+      overdueCount: n.overdueCount, settledCount: n.settledCount,
     };
+  }
+
+  /**
+   * Série mensal (Relatórios › Vendas e recebimentos): os últimos 6 ou 12 meses civis até o atual, do mais antigo ao atual, com as
+   * MESMAS regras do /finance/overview aplicadas mês a mês (contratado e quantidade das vendas ativas pela data da venda; recebido =
+   * pagamentos líquidos com data no mês). O mês atual é igual ao /finance/overview?period=month.
+   */
+  function series(searchParams) {
+    const u = d.requireStudent();
+    const query = readQuery(searchParams, { months: { enum: ['6', '12'], message: 'Informe 6 ou 12 meses.' } }, { months: '6' });
+    const now = today();
+    const count = Number(query.months);
+    const y = Number(now.slice(0, 4));
+    const m = Number(now.slice(5, 7)) - 1;
+    const rows = Array.from({ length: count }, (_, k) => {
+      const shift = m - (count - 1 - k);
+      const from = new Date(Date.UTC(y, shift, 1)).toISOString().slice(0, 10);
+      const to = new Date(Date.UTC(y, shift + 1, 0)).toISOString().slice(0, 10);
+      const t = windowTotals(u, { from, to }, now);
+      return { month: from.slice(0, 7), contracted: t.contracted, received: t.received, salesCount: t.salesCount };
+    });
+    return { status: 200, body: { rows } };
   }
 
   // ---------------------------------------------------------------- o que a Central Comercial usa (contato e oportunidade)
@@ -691,6 +727,7 @@ export function createFinanceDemo(d) {
       ['POST', new RegExp(`^sales/${SEG}/renegotiate$`), (m, _q, body) => renegotiate(m[1], body)],
       ['GET', /^receivables$/, (_m, q) => receivables(q)],
       ['GET', /^finance\/overview$/, (_m, q) => overview(q)],
+      ['GET', /^finance\/series$/, (_m, q) => series(q)],
       ['GET', new RegExp(`^mentora/students/${SEG}/finance$`), (m, q) => mentoraFinance(m[1], q)],
     ],
     /** A oportunidade tem venda ATIVA (não pode sair da etapa ganha). */
@@ -702,6 +739,7 @@ export function createFinanceDemo(d) {
     },
     personTotals,
     personSales,
+    mentoraBody,
     readSaleForDeal,
     fullSale,
     /** Oportunidade apagada: a venda fica, sem o vínculo (ON DELETE SET NULL). */

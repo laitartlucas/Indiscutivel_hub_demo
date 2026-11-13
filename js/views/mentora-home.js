@@ -24,6 +24,13 @@ import { copyLinkDialog } from './student-forms.js';
 import { can } from '../lib/permissions.js';
 import { renderTeamHome } from './team-home.js';
 import { formatAverage, formatCount } from '../../shared/active-students.js';
+import { mountRevenueHighlights } from './revenue-ui.js';
+import { buildQuery } from '../lib/query.js';
+import { achievementKindLabel, commercialItems, financeItems, isBusinessPeriod, marketingItems, phaseBars, shortDate } from '../lib/business.js';
+import { formatCount as countText } from '../lib/marketing.js';
+import { money } from '../lib/finance.js';
+import { dataTable } from '../ui/table.js';
+import { barList, bindFilter, filterBar, kpiGroup, readSaved, retryBlock, saveChoice } from './business-ui.js';
 
 // Quem está vendo (a proprietária pode tudo; a equipe só o que o papel permite). O servidor confere de novo em cada rota.
 let viewer = null;
@@ -218,7 +225,7 @@ function renderHighlights(overview) {
     ${rows.length === 0
       ? emptyState({ title: 'Sem destaques ainda.', message: 'Quem mais evoluir nesta semana aparece aqui.' })
       : html`<ul class="mp-highlights" aria-labelledby="mp-highlights-title">${rows.map(
-          (h) => html`<li><a class="mp-hl" href="#/alunas/${h.id}">
+          (h) => html`<li><a class="mp-hl" href="#/alunas/${encodeURIComponent(h.id)}">
             <span class="mp-hl-avatar" aria-hidden="true">${h.avatarUrl ? avatarContent(h.name, h.avatarUrl) : initials(h.name)}</span>
             <span class="mp-hl-text"><span class="mp-hl-name">${h.name}</span><span class="mp-hl-sub">${levelText(h.level.n)} · ${h.level.name} · ${h.label}</span></span>
             <span class="mp-hl-xp">+${h.weekXp.toLocaleString('pt-BR')} XP<span class="sr-only"> na semana</span></span>
@@ -226,10 +233,157 @@ function renderHighlights(overview) {
         )}</ul>`}`;
 }
 
+// ---------------------------------------------------------------- Entrega 7: jornada do período (students.view)
+const ALUNAS_PERIOD_KEY = 'ih:mentora-alunas-period';
+const BUSINESS_PERIOD_KEY = 'ih:mentora-business-period';
+
+/** Resposta de GET /mentora/overview?period com os campos da jornada (fases, desafios, check-ins, conquistas). */
+function isJourneyOverview(value) {
+  return !!value && typeof value === 'object' && Array.isArray(value.phases) && !!value.challenges && !!value.checkins;
+}
+
+function miniStat(label, value, note, href) {
+  return html`<div class="fin-kpi biz-kpi" role="group" aria-label="${label}"><span class="lead-kpi-label">${label}</span><span class="fin-kpi-value">${value}</span><span class="lead-kpi-note">${href ? html`<a href="${href}">${note}</a>` : note}</span></div>`;
+}
+
+function renderJourneyPeriod(data) {
+  const bars = phaseBars(data.phases);
+  const achievements = Array.isArray(data.recentAchievements) ? data.recentAchievements : [];
+  const total = bars.reduce((n, b) => n + b.count, 0);
+  return html`<div class="mp-alunas-grid">
+    <div class="stack">
+      <h3 class="fin-mini-title">Alunas por fase</h3>
+      ${total === 0
+        ? html`<p class="muted od-none">Nenhuma aluna ativa com fase registrada.</p>`
+        : barList({ caption: 'Alunas ativas por fase da jornada', valueHeader: 'Alunas', rows: bars.map((b) => ({ label: `${String(b.phase).padStart(2, '0')} · ${b.label}`, value: b.count, width: b.width })) })}
+      <div class="mp-mini-stats">
+        ${miniStat('Desafios concluídos', countText(data.challenges.completedInPeriod ?? 0), 'conclusões no período')}
+        ${miniStat('Desafios ativos', countText(data.challenges.active ?? 0), 'em andamento hoje')}
+        ${miniStat('Check-ins aguardando retorno', countText(data.checkins.pendingFeedback ?? 0), 'Ver check-ins', '#/gestao/checkins')}
+      </div>
+    </div>
+    <div class="stack">
+      <h3 class="fin-mini-title">Conquistas recentes</h3>
+      ${achievements.length === 0
+        ? html`<p class="muted od-none">Nenhuma conquista desbloqueada no período.</p>`
+        : html`<ul class="mp-achv">${achievements.map(
+            (a) => html`<li><span class="mp-achv-main"><a class="mp-achv-name" href="#/alunas/${encodeURIComponent(a.studentId)}">${a.studentName}</a><span class="mp-achv-sub">${achievementKindLabel(a.kind)}: ${a.title}</span></span><span class="mp-achv-when">${shortDate(a.at)}</span></li>`,
+          )}</ul>`}
+    </div>
+  </div>`;
+}
+
+/** Bloco "Jornada no período" do Painel: período próprio, carrega sozinho e tenta de novo sozinho. */
+function mountJourneyPeriod({ host, api, isDisposed }) {
+  let period = readSaved(ALUNAS_PERIOD_KEY, isBusinessPeriod, 'month');
+  let seq = 0;
+  const filterHost = host.querySelector('#mp-period-filter');
+  const body = host.querySelector('#mp-period-body');
+  async function load() {
+    const mine = ++seq;
+    host.setAttribute('aria-busy', 'true');
+    mount(body, skeleton(3));
+    try {
+      const data = await api.get(`/api/v1/mentora/overview${buildQuery({ period })}`);
+      if (isDisposed() || mine !== seq) return;
+      mount(body, isJourneyOverview(data) ? renderJourneyPeriod(data) : retryBlock('Os números da jornada no período não estão disponíveis agora.', 'journey', 'Jornada no período'));
+      applySizes(body);
+    } catch (error) {
+      if (isDisposed() || mine !== seq) return;
+      mount(body, retryBlock(error, 'journey', 'Jornada no período'));
+    }
+    host.setAttribute('aria-busy', 'false');
+  }
+  const paint = (focusSelector) => {
+    mount(filterHost, filterBar({ prefix: 'mp-period', filter: { period, month: '' }, label: 'Período da jornada' }));
+    if (focusSelector) filterHost.querySelector(focusSelector)?.focus();
+  };
+  bindFilter(filterHost, () => ({ period, month: '' }), (next, focusSelector) => {
+    period = next.period;
+    saveChoice(ALUNAS_PERIOD_KEY, period);
+    paint(focusSelector);
+    load();
+  });
+  body.addEventListener('click', (event) => {
+    if (event.target.closest('[data-action="retry"][data-which="journey"]')) load();
+  });
+  paint();
+  load();
+}
+
+// ---------------------------------------------------------------- Entrega 7: negócio das alunas (business.view)
+
+const TOP_COLUMNS = [
+  { key: 'name', label: 'Aluna', render: (r) => html`<a class="cc-funnel-link" href="#/alunas/${encodeURIComponent(r.studentId)}">${r.studentName}</a>` },
+  { key: 'won', label: 'Vendas ganhas', align: 'end', nowrap: true, render: (r) => countText(r.commercial?.won?.count ?? 0) },
+  { key: 'wonTotal', label: 'Valor ganho', align: 'end', nowrap: true, render: (r) => money(r.commercial?.won?.total ?? '0.00') },
+  { key: 'received', label: 'Recebido', align: 'end', nowrap: true, optional: true, render: (r) => money(r.finance?.received ?? '0.00') },
+];
+
+function renderBusiness(data) {
+  const totals = data?.totals ?? {};
+  const rows = Array.isArray(data?.rows) ? data.rows.slice(0, 5) : [];
+  return html`<div class="biz-groups">
+      ${kpiGroup({ id: 'mpb-c', title: 'Comercial', items: commercialItems(totals.commercial) })}
+      ${kpiGroup({ id: 'mpb-f', title: 'Financeiro', items: financeItems(totals.finance) })}
+      ${kpiGroup({ id: 'mpb-m', title: 'Marketing', items: marketingItems(totals.marketing) })}
+    </div>
+    <section class="lead-card cc-funnels-card" aria-labelledby="mpb-top-title">
+      <div class="od-card-head"><h3 id="mpb-top-title" class="lead-card-title">Alunas com mais vendas no período</h3>${allowed('reports.view') ? html`<a class="od-link-btn" href="#/relatorios-mentoria?aba=negocio">Ver todas</a>` : ''}</div>
+      ${rows.length === 0
+        ? emptyState({ title: 'Nenhuma venda das alunas no período.', message: 'Quando as alunas ganharem oportunidades, as cinco que mais venderam aparecem aqui.' })
+        : dataTable({ caption: 'As cinco alunas com maior valor de vendas ganhas no período', columns: TOP_COLUMNS, rows, rowKey: (r) => r.studentId })}
+    </section>`;
+}
+
+function mountBusiness({ host, api, isDisposed }) {
+  let period = readSaved(BUSINESS_PERIOD_KEY, isBusinessPeriod, 'month');
+  let seq = 0;
+  const filterHost = host.querySelector('#mpb-filter');
+  const body = host.querySelector('#mpb-body');
+  async function load() {
+    const mine = ++seq;
+    body.setAttribute('aria-busy', 'true');
+    mount(body, skeleton(4));
+    try {
+      const data = await api.get(`/api/v1/mentora/business${buildQuery({ period, limit: 5, offset: 0 })}`);
+      if (isDisposed() || mine !== seq) return;
+      mount(body, renderBusiness(data));
+    } catch (error) {
+      if (isDisposed() || mine !== seq) return;
+      mount(body, retryBlock(error, 'business', 'Negócio das alunas'));
+    }
+    body.setAttribute('aria-busy', 'false');
+  }
+  const paint = (focusSelector) => {
+    mount(filterHost, filterBar({ prefix: 'mpb', filter: { period, month: '' }, label: 'Período do negócio das alunas' }));
+    if (focusSelector) filterHost.querySelector(focusSelector)?.focus();
+  };
+  bindFilter(filterHost, () => ({ period, month: '' }), (next, focusSelector) => {
+    period = next.period;
+    saveChoice(BUSINESS_PERIOD_KEY, period);
+    paint(focusSelector);
+    load();
+  });
+  body.addEventListener('click', (event) => {
+    if (event.target.closest('[data-action="retry"][data-which="business"]')) load();
+  });
+  paint();
+  load();
+}
+
+function sectionHead(id, title, note, extra = '') {
+  return html`<div class="mp-section-head"><div><h2 id="${id}">${title}</h2>${note ? html`<p class="mp-section-note">${note}</p>` : ''}</div>${extra}</div>`;
+}
+
 export function renderMentoraHome({ root, session, api, navigate }) {
   viewer = session.state.user;
-  // Equipe sem permissão de ver alunas: o Painel é só um ponto de partida para o que o papel libera.
-  if (!allowed('students.view')) return renderTeamHome({ root, session, navigate });
+  const canStudents = allowed('students.view');
+  const canRevenue = allowed('revenue.view');
+  const canBusiness = allowed('business.view');
+  // Equipe sem nenhuma das três seções: o Painel é só um ponto de partida para o que o papel libera.
+  if (!canStudents && !canRevenue && !canBusiness) return renderTeamHome({ root, session, navigate });
+  if (!canStudents) return renderSectionsOnly({ root, session, api, navigate, canRevenue, canBusiness });
   const first = String(session.state.user?.name ?? '').trim().split(/\s+/)[0] ?? '';
   const now = new Date();
   let disposed = false;
@@ -250,19 +404,25 @@ export function renderMentoraHome({ root, session, api, navigate }) {
     large: true,
     actions: allowed('students.manage') ? html`<a class="btn btn-primary" href="#/alunas?nova=1" id="mp-new-student">${icon('plus', { size: 16, stroke: 2 })}Nova aluna</a>` : '',
     content: html`<div class="dash mp">
-      <div class="mp-hero">
-        <div id="mp-green">${skeleton(3)}</div>
-        <section class="dash-card" id="mp-attention" aria-labelledby="mp-attention-title" aria-busy="true">${skeleton(3)}</section>
-      </div>
-      <div id="mentora-summary" aria-live="off">${skeleton(3)}</div>
-      <div class="dash-split mp-split">
-        <section class="dash-card" id="mp-evolution" aria-labelledby="mp-evolution-title" aria-busy="true">${skeleton(3)}</section>
-        <section class="dash-card" id="mp-classes" aria-labelledby="mp-classes-title" aria-busy="true">${skeleton(3)}</section>
-      </div>
-      <div class="dash-split mp-split">
-        <section class="dash-card" id="mp-activity" aria-labelledby="mp-activity-title" aria-busy="true">${skeleton(3)}</section>
-        <section class="dash-card" id="mp-highlights" aria-labelledby="mp-highlights-title" aria-busy="true">${skeleton(3)}</section>
-      </div>
+      <section class="mp-section" aria-labelledby="mp-sec-alunas">
+        ${sectionHead('mp-sec-alunas', 'Alunas', 'Contas, convites, jornada, desafios e conquistas. Nenhum dado de negócio aqui.')}
+        <div class="mp-hero">
+          <div id="mp-green">${skeleton(3)}</div>
+          <section class="dash-card" id="mp-attention" aria-labelledby="mp-attention-title" aria-busy="true">${skeleton(3)}</section>
+        </div>
+        <div id="mentora-summary" aria-live="off">${skeleton(3)}</div>
+        ${journeyCard()}
+        <div class="dash-split mp-split">
+          <section class="dash-card" id="mp-evolution" aria-labelledby="mp-evolution-title" aria-busy="true">${skeleton(3)}</section>
+          <section class="dash-card" id="mp-classes" aria-labelledby="mp-classes-title" aria-busy="true">${skeleton(3)}</section>
+        </div>
+        <div class="dash-split mp-split">
+          <section class="dash-card" id="mp-activity" aria-labelledby="mp-activity-title" aria-busy="true">${skeleton(3)}</section>
+          <section class="dash-card" id="mp-highlights" aria-labelledby="mp-highlights-title" aria-busy="true">${skeleton(3)}</section>
+        </div>
+      </section>
+      ${canRevenue ? revenueSection() : ''}
+      ${canBusiness ? businessSection() : ''}
     </div>`,
   });
 
@@ -373,9 +533,65 @@ export function renderMentoraHome({ root, session, api, navigate }) {
 
   loadSummary();
   loadOverview();
+  const revenueHost = root.querySelector('#mp-revenue');
+  const disposeRevenue = revenueHost ? mountRevenueHighlights({ host: revenueHost, api, title: 'PAD GOLD e marcos' }) : () => {};
+  mountJourneyPeriod({ host: root.querySelector('#mp-period'), api, isDisposed: () => disposed });
+  const businessHost = root.querySelector('#mp-business');
+  if (businessHost) mountBusiness({ host: businessHost, api, isDisposed: () => disposed });
 
   return () => {
     disposed = true;
+    disposeRevenue();
+    dispose();
+  };
+}
+
+// ---------------------------------------------------------------- seções (cada uma pede a própria permissão)
+
+function journeyCard() {
+  return html`<section class="dash-card" id="mp-period" aria-labelledby="mp-period-title" aria-busy="true">
+    <div class="dash-card-head biz-toolbar"><h2 id="mp-period-title">Jornada no período</h2><div id="mp-period-filter"></div></div>
+    <div id="mp-period-body">${skeleton(3)}</div>
+  </section>`;
+}
+
+function revenueSection() {
+  return html`<section class="mp-section" aria-labelledby="mp-sec-revenue">
+    ${sectionHead('mp-sec-revenue', 'Faturamento das alunas', 'Valores declarados pelas próprias alunas. É outra medida: não se soma às vendas do Comercial.')}
+    <div id="mp-revenue"></div>
+  </section>`;
+}
+
+function businessSection() {
+  return html`<section class="mp-section" id="mp-business" aria-labelledby="mp-sec-business">
+    ${sectionHead('mp-sec-business', 'Negócio das alunas', 'Somas dos números do Comercial, do Financeiro e do Marketing das suas alunas, cada natureza no seu grupo. Nunca nomes de clientes nem de campanhas.', html`<div id="mpb-filter"></div>`)}
+    <div id="mpb-body" aria-busy="true">${skeleton(4)}</div>
+  </section>`;
+}
+
+/** Equipe sem `students.view`, mas com faturamento e/ou negócio: só as seções que o papel libera. */
+function renderSectionsOnly({ root, session, api, navigate, canRevenue, canBusiness }) {
+  const first = String(session.state.user?.name ?? '').trim().split(/\s+/)[0] ?? '';
+  const now = new Date();
+  let disposed = false;
+  const dispose = renderShell({
+    root,
+    session,
+    navigate,
+    active: 'home',
+    heading: first ? `${greeting(now)}, ${first}.` : `${greeting(now)}.`,
+    eyebrow: eyebrowDate(now),
+    subtitle: session.state.user?.teamRole ? `Seu papel na equipe: ${session.state.user.teamRole}.` : 'Você faz parte da equipe da mentoria.',
+    large: true,
+    content: html`<div class="dash mp">${canRevenue ? revenueSection() : ''}${canBusiness ? businessSection() : ''}</div>`,
+  });
+  const revenueHost = root.querySelector('#mp-revenue');
+  const disposeRevenue = revenueHost ? mountRevenueHighlights({ host: revenueHost, api, title: 'PAD GOLD e marcos' }) : () => {};
+  const businessHost = root.querySelector('#mp-business');
+  if (businessHost) mountBusiness({ host: businessHost, api, isDisposed: () => disposed });
+  return () => {
+    disposed = true;
+    disposeRevenue();
     dispose();
   };
 }

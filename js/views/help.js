@@ -19,6 +19,7 @@ const STUDENT_SECTIONS = [
       '"Minhas alunas ativas" é o número que você mesma informa: quantas alunas ativas você tem hoje. Toque em "Atualizar" quando mudar; o Painel mostra a data da última atualização, a variação em relação ao mês anterior e os últimos 6 meses. Sua mentora vê só esse número, nunca os seus clientes nem valores.',
       '"Tire dúvidas com a IA da sua mentora" abre a IA Indiscutível em uma nova aba.',
       'Se a sua mentora redefiniu a sua senha por um link, o Painel avisa por até 30 dias. Toque em "Entendi" para dispensar o aviso neste aparelho.',
+      'No fim do Painel, "Meu negócio" mostra o mês, o trimestre ou o ano em três grupos, cada um com os números do próprio módulo e um link para ele: Comercial (leads, oportunidades abertas e o valor em negociação, conversão e vendas fechadas), Financeiro (contratado, recebido, a receber, vencido e contratos em aberto) e Marketing (investimento, CPL, CAC, ROAS, campanhas ativas, as 3 origens com mais leads e os 3 funis com mais receita). Os grupos nunca se somam: vender não é receber, e o seu faturamento declarado fica à parte.',
     ],
   },
   {
@@ -122,13 +123,26 @@ const STUDENT_SECTIONS = [
     ],
   },
   {
+    id: 'faturamento',
+    title: 'Meu faturamento e marcos',
+    intro: 'O faturamento que você mesma informa, mês a mês. Ele é separado das vendas registradas no Comercial (selo "Autodeclarado").',
+    items: [
+      'Em Meu faturamento, toque em "Lançar faturamento", escolha o mês (da sua entrada na mentoria até o mês atual), informe o valor e, se quiser, uma observação. Cada mês tem um lançamento só: escolher um mês já lançado substitui o valor.',
+      'O acumulado soma os meses desde a sua entrada na mentoria. Se a data de entrada mudar, lançamentos de antes dela ficam guardados com a marca "Fora do período", mas não contam.',
+      'Os marcos são 10k, 30k, 50k e 100k Mentorias; o de R$ 100 mil também dá o status PAD GOLD. Você recebe um aviso quando alcança cada um, e a sua mentora também.',
+      'Errou um valor? Use "Editar" ou "Excluir" no mês. Toda alteração fica no histórico. Se a correção deixar o acumulado abaixo de um marco já alcançado, ele fica "Em revisão" (com a data original guardada) e volta a valer sozinho quando o acumulado passar de novo, sem novo aviso.',
+      'Em Conquistas, o bloco "Marcos de faturamento" mostra a mesma trilha.',
+    ],
+  },
+  {
     id: 'relatorios',
     title: 'Relatórios',
-    intro: 'Os números do seu CRM em um só lugar, calculados no sistema a partir dos seus dados.',
+    intro: 'Os números do seu negócio em um só lugar, calculados no sistema a partir dos seus dados, em quatro abas.',
     items: [
-      'Escolha o período (30 dias, trimestre ou 12 meses). Cada indicador é comparado com o período anterior equivalente; quando não há base de comparação, a variação não aparece.',
-      'A taxa de conversão é ganhas ÷ (ganhas + perdidas) do período. O funil mostra, das oportunidades criadas no período, quantas chegaram a cada etapa.',
-      '"Exportar relatório" baixa um arquivo CSV com os números da tela. Ele é gerado no seu navegador, sem enviar nada a terceiros, e abre direto no Excel.',
+      'Resumo: escolha o período (30 dias, trimestre ou 12 meses). Cada indicador é comparado com o período anterior equivalente; quando não há base de comparação, a variação não aparece. A taxa de conversão é ganhas ÷ (ganhas + perdidas) do período. O funil mostra, das oportunidades criadas no período, quantas chegaram a cada etapa.',
+      '"Exportar relatório" (no Resumo) baixa um arquivo CSV com os números da tela. Ele é gerado no seu navegador, sem enviar nada a terceiros, e abre direto no Excel.',
+      'Comercial e funis, Vendas e recebimentos e Marketing e campanhas usam os mesmos números de cada módulo. Escolha este mês, este trimestre, este ano ou um mês específico: o filtro vale para as três abas.',
+      'Comercial e funis: contatos novos por origem, oportunidades por funil (abertas, ganhas, perdidas, valor e conversão) e o tempo médio até fechar. Vendas e recebimentos: contratado e recebido, o gráfico mês a mês (6 ou 12 meses), as vendas do período e as contas a receber (vencidas e a vencer em 30 dias). Marketing e campanhas: os indicadores, cada campanha (com a linha "Sem campanha") e os últimos períodos do Instagram.',
     ],
   },
   {
@@ -166,7 +180,9 @@ const STUDENT_SECTIONS = [
     items: [
       'Os dados do seu negócio (contatos, oportunidades, vendas, pagamentos, campanhas, investimentos, números do Instagram, atividades, Tarefas e Produtos) são só seus. A sua mentora não vê nomes, telefones nem conversas dos seus clientes, em nenhuma tela nem na busca.',
       'A sua mentora (e a equipe dela, se tiver a permissão) pode ver só números agregados da sua Central Comercial: quantos contatos novos, quantas oportunidades em negociação, ganhas e perdidas, os valores somados e a conversão por funil. Do Financeiro, ela vê só os totais: contratado, recebido, a receber, vencido e o número de vendas, nunca os clientes nem as descrições das vendas. Do Marketing, só os números (investimento, leads, CPL, clientes novos, CAC, receita, ROAS, ROI e quantas campanhas estão ativas), nunca os nomes das campanhas.',
-      'A sua mentora vê apenas dados da conta: nome, e-mail, turma, situação do acesso e quando você entrou pela última vez, além do número de "alunas ativas" que você mesma informa.',
+      'Esses números agregados aparecem, em R$ inclusive, na página de cada aluna e também somados com os das outras alunas no Painel e nos Relatórios da mentora (por exemplo, "as 5 alunas com mais vendas no período"). Nunca com nomes de clientes, nomes de campanhas ou descrições de vendas.',
+      'A sua mentora também vê o faturamento que você declara em Meu faturamento (valores do mês, acumulado e marcos, inclusive PAD GOLD). É outra medida: não se mistura com as vendas do Comercial.',
+      'Da sua conta, ela vê nome, e-mail, turma, situação do acesso, quando você entrou pela última vez, a sua fase na jornada, os seus desafios e check-ins e o número de "alunas ativas" que você mesma informa.',
     ],
   },
 ];
@@ -175,10 +191,11 @@ const MENTORA_SECTIONS = [
   {
     id: 'painel',
     title: 'Painel',
-    intro: 'Um retrato do acesso das suas alunas.',
+    intro: 'Um retrato das suas alunas em três seções. Cada seção só aparece para quem tem a permissão dela.',
     items: [
-      'Os seis indicadores são: total de alunas, ativas, convites pendentes, convites expirados, alunas que nunca acessaram e acessos nas últimas 24 horas.',
-      'O Painel mostra só números de contas e convites, mais "Alunas ativas das alunas" (a soma do que cada aluna informou) e a média por aluna. Não há dados de negócio das alunas nele.',
+      'Alunas (permissão "Ver alunas"): total de alunas, ativas, convites pendentes, convites expirados, alunas que nunca acessaram, acessos nas últimas 24 horas e "Alunas ativas das alunas" (a soma do que cada aluna informou). "Jornada no período" mostra as alunas por fase, os desafios concluídos, os check-ins aguardando o seu retorno e as conquistas recentes (com o nome da aluna e a data).',
+      'Faturamento das alunas (permissão "Faturamento das alunas"): o acumulado declarado, as alunas PAD GOLD e os marcos em revisão. São valores informados pelas próprias alunas.',
+      'Negócio das alunas (permissão "Indicadores de negócio das alunas"): no mês, no trimestre ou no ano, os totais somando as suas alunas, cada natureza no seu grupo (Comercial, Financeiro e Marketing, que nunca se somam entre si), e as 5 alunas com mais vendas ganhas. Só números: nunca nomes de clientes, de campanhas ou descrições de vendas.',
     ],
   },
   {
@@ -201,6 +218,28 @@ const MENTORA_SECTIONS = [
       'O item Check-ins do menu reúne os registros diários das alunas nos desafios. Filtre por desafio, por aluna e pela situação (Aguardando retorno ou Com retorno). Cada check-in mostra o texto, os links (abrem em nova aba), as fotos (toque para ver maior) e os comprovantes (para baixar).',
       '"Dar retorno" envia a sua resposta para a aluna, que recebe um aviso. Um novo retorno substitui o anterior. Precisa da permissão de gerenciar desafios.',
       'Em Desafios, "Participantes e check-ins" abre a lista de alunas do desafio: quem concluiu, quem está em dia (check-in nos últimos 3 dias), quem está atrasada e quem não começou, com o último check-in e os retornos pendentes.',
+    ],
+  },
+  {
+    id: 'faturamento-alunas',
+    title: 'Faturamento das alunas',
+    intro: 'O faturamento que cada aluna declara, separado das vendas do Comercial. Precisa da permissão "Faturamento das alunas".',
+    items: [
+      'O item Faturamento das alunas mostra o resumo (alunas, total do mês, acumulado, PAD GOLD, marcos em revisão e marcos alcançados no mês) e a lista com o valor do mês, o acumulado desde a entrada, os marcos de cada uma, a próxima conquista e o último lançamento. Filtre por mês, nome, fase ou conquista.',
+      'Os marcos são 10k, 30k, 50k e 100k Mentorias; o de R$ 100 mil dá o status PAD GOLD. Você recebe um aviso quando uma aluna alcança um marco e quando um marco entra em revisão.',
+      '"Em revisão" quer dizer que a aluna corrigiu um lançamento e o acumulado ficou abaixo de um marco já alcançado. A data original fica guardada e o marco volta a valer sozinho quando o acumulado passar de novo.',
+      'No perfil da aluna, o cartão Faturamento mostra o acumulado, o mês de entrada, a trilha dos marcos, a evolução mês a mês e os últimos lançamentos. O Painel destaca as alunas PAD GOLD e os marcos em revisão.',
+    ],
+  },
+  {
+    id: 'relatorios',
+    title: 'Relatórios da mentoria',
+    intro: 'Análises das suas alunas em abas. Precisa da permissão "Relatórios"; as abas de faturamento e de negócio pedem também a permissão delas.',
+    items: [
+      'Engajamento: alunas ativas, engajamento, conclusão dos desafios, metas atingidas, uso por módulo, níveis e quem mais evoluiu. Só contagens, sem nenhum R$. "Exportar relatório" baixa o CSV desta aba.',
+      'Alunas e fases, Desafios e Conquistas: filtre por período, turma e fase. Veja a distribuição por fase, as mudanças de fase (aluna, de qual para qual fase e quando), quem está na mesma fase há mais de 90 dias, a adesão a cada desafio (destinadas, inscritas, concluíram, check-ins e aguardando retorno) e os desbloqueios por conquista. Os marcos de faturamento só aparecem com a permissão "Faturamento das alunas".',
+      'Faturamento das alunas: o acumulado por aluna, a soma declarada mês a mês (últimos 6 meses) e as alunas PAD GOLD. Valores autodeclarados.',
+      'Negócio das alunas: os totais do período por natureza e uma linha por aluna, só com números agregados (em R$ inclusive), nunca nomes de clientes nem de campanhas.',
     ],
   },
   {
@@ -239,6 +278,7 @@ const MENTORA_SECTIONS = [
       'Você vê dados de conta e de mentoria: nome, e-mail, telefone, turma, programa, plano, situação do acesso e último acesso, além do número de alunas ativas que cada aluna informa.',
       'Você não vê os clientes das alunas: nomes, telefones, conversas, oportunidades uma a uma, Tarefas ou Produtos. Nem a busca do topo os encontra. Isso protege a aluna e é garantido pelo próprio banco de dados.',
       'Na página de cada aluna, o cartão "Comercial" mostra só números agregados (contatos novos, oportunidades em negociação, ganhas e perdidas, valores somados e conversão por funil). O cartão "Financeiro" mostra só totais das vendas da aluna (contratado e recebido no período, a receber e vencido hoje, número de vendas e de vendas quitadas), sem clientes nem descrições. O cartão "Marketing" mostra investimento, leads, CPL, clientes novos, CAC, receita atribuída, ROAS, ROI e campanhas ativas, sem os nomes das campanhas. A equipe só vê esses cartões com a permissão "Indicadores de negócio das alunas".',
+      'Os mesmos números aparecem somados no Painel (seção Negócio das alunas) e na aba "Negócio das alunas" dos Relatórios, com uma linha por aluna. O faturamento declarado (seção e aba "Faturamento das alunas") é outra medida e nunca se soma às vendas.',
     ],
   },
   {

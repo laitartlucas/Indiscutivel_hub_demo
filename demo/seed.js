@@ -2,6 +2,7 @@ import { buildFinanceSeed } from './seed-finance.js';
 import { buildGrowthSeed } from './seed-growth.js';
 import { buildMarketingSeed } from './seed-marketing.js';
 import { buildJourneySeed } from './seed-journey.js';
+import { buildRevenueSeed } from './seed-revenue.js';
 import { weekBounds } from './mentora-data.js';
 import { SYSTEM_ROLES } from './team-data.js';
 import { DEFAULT_FUNNELS, defaultFunnelRows } from './funnels-data.js';
@@ -14,7 +15,7 @@ export const DEMO_PASSWORD = 'Demo-1234';
 export const MENTORA_EMAIL = 'mentora@demo.com';
 export const STUDENT_EMAIL = 'aluna@demo.com';
 export const ASSISTANT_EMAIL = 'assistente@demo.com';
-export const SCHEMA_VERSION = 19;
+export const SCHEMA_VERSION = 20;
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -524,11 +525,15 @@ export function buildSeed(now) {
   const otherCrm = [
     [3, [['Paula Vieira', 'referral', 'indicacao', 'won', '6000.00', 40, 12], ['Sônia Ramos', 'event', 'evento', 'won', '3500.00', 25, 8], ['Teresa Lins', 'organic', 'conteudo', 4, '4200.00', 10, null],
       ['Vera Assis', 'organic', 'conteudo', 2, '2800.00', 6, null], ['Yara Costa', 'meta_ads', 'aplicacao', 3, '5200.00', 9, null], ['Zilda Prates', 'referral', 'indicacao', 'lost', '6000.00', 30, 14],
-      ['Alice Menezes', 'event', 'imersao', 2, '9000.00', 5, null]]],
-    [4, [['Bianca Torres', 'organic', 'conteudo', 1, '1500.00', 4, null], ['Cecília Rocha', 'meta_ads', 'isca', 3, '497.00', 7, null], ['Diana Faria', 'referral', 'indicacao', 'won', '1800.00', 20, 6]]],
+      ['Alice Menezes', 'event', 'imersao', 2, '9000.00', 5, null],
+      // Entrega 7: vendas de meses anteriores (séries mensais e relatórios com histórico).
+      ['Rita Gomes', 'referral', 'indicacao', 'won', '4500.00', 130, 120], ['Sara Lopes', 'meta_ads', 'aplicacao', 'won', '7200.00', 85, 75]]],
+    [4, [['Bianca Torres', 'organic', 'conteudo', 1, '1500.00', 4, null], ['Cecília Rocha', 'meta_ads', 'isca', 3, '497.00', 7, null], ['Diana Faria', 'referral', 'indicacao', 'won', '1800.00', 20, 6],
+      ['Olga Brito', 'event', 'evento', 'won', '2200.00', 110, 100]]],
     [5, [['Elisa Moura', 'organic', 'conteudo', 'lost', '2500.00', 35, 18], ['Fabiana Leal', 'referral', 'renovacao', 1, '3000.00', 12, null], ['Gisele Prado', 'event', 'workshop', 2, '900.00', 15, null]]],
     [7, [['Helena Duarte', 'referral', 'indicacao', 2, '4000.00', 6, null], ['Íris Campos', 'organic', 'grupo_vip', 'won', '1200.00', 18, 4], ['Joana Pires', 'meta_ads', 'desafio', 3, '700.00', 9, null],
       ['Kátia Nunes', 'organic', 'conteudo', 1, '2000.00', 2, null]]],
+    [6, [['Lia Souza', 'referral', 'indicacao', 'won', '1500.00', 100, 90], ['Mel Araújo', 'organic', 'conteudo', 'won', '3000.00', 50, 40], ['Nina Reis', 'organic', 'conteudo', 2, '1800.00', 10, null]]],
   ];
   for (const [n, rows] of otherCrm) {
     rows.forEach(([name, source, key, stage, value, opened, closed], k) => {
@@ -683,6 +688,9 @@ export function buildSeed(now) {
   const marketing = buildMarketingSeed({ now, uid, people, deals, did });
   // Jornada e check-ins: fases com histórico, check-ins dos desafios (com e sem feedback) e uma foto pequena.
   const journey = buildJourneySeed({ now, users, challenges: growth.challenges, enrollments: growth.challengeEnrollments });
+  // Faturamento autodeclarado: lançamentos desde a entrada, uma correção e os marcos (Camila 10k e 30k, Mariana PAD GOLD, Beatriz 50k
+  // em revisão). Sem avisos de exemplo: os avisos de marco nascem dos lançamentos feitos na demonstração.
+  const revenue = buildRevenueSeed({ now, users });
 
   // Ranking "Evolução da comunidade": 9 alunas ativas (5 da Turma Aurora, 4 da Horizonte) já optaram por participar, com XP do mês variado e
   // níveis diferentes. A aluna demo NÃO participa até ligar a opção (padrão desligado, como no sistema). O XP do mês fica entre o
@@ -843,5 +851,5 @@ export function buildSeed(now) {
     { userId: uid(91), roleId: roleReadonly },
   ];
 
-  return { schema: SCHEMA_VERSION, seededAt: now.toISOString(), users, invites, notifications, products, people, companies, funnels: funnelRows, funnelStages: stageRows, deals, dealHistory, tasks, activities, xpEvents, goals, preferences, otherSessions, leadSources: {}, mentoria, mentoriaNotes, mentoringSessions, followupPlans, mentoriaCheckins, teamRoles, teamMembers, ...finance, ...marketing, ...growth, ...journey };
+  return { schema: SCHEMA_VERSION, seededAt: now.toISOString(), users, invites, notifications, products, people, companies, funnels: funnelRows, funnelStages: stageRows, deals, dealHistory, tasks, activities, xpEvents, goals, preferences, otherSessions, leadSources: {}, mentoria, mentoriaNotes, mentoringSessions, followupPlans, mentoriaCheckins, teamRoles, teamMembers, ...finance, ...marketing, ...growth, ...journey, ...revenue };
 }

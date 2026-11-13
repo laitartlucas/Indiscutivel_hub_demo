@@ -72,7 +72,7 @@ const CAMPAIGN_COLUMNS = [
   { key: 'roas', label: 'ROAS', align: 'end', nowrap: true, render: (r) => (r.campaignId ? formatRoas(r.metrics.roas) : '—') },
 ];
 
-function campaignsCard(overview) {
+export function campaignsCard(overview) {
   const rows = (overview.byCampaign ?? []).map((c) => ({ ...c, metrics: c.metrics ?? {} }));
   const without = overview.withoutCampaign ?? { leads: 0, sales: 0, revenue: '0.00' };
   const all = [...rows, { campaignId: null, name: 'Sem campanha', metrics: { leads: without.leads ?? 0, sales: without.sales ?? 0, revenue: without.revenue ?? '0.00' } }];
@@ -92,7 +92,7 @@ const FUNNEL_COLUMNS = [
   { key: 'revenue', label: 'Receita', align: 'end', nowrap: true, render: (r) => money(r.revenue ?? '0.00') },
 ];
 
-function funnelsCard(overview) {
+export function funnelsCard(overview) {
   const rows = (overview.byFunnel ?? []).filter((f) => Number(f.leads) || Number(f.opportunities) || Number(f.sales));
   return html`<section class="lead-card cc-funnels-card" aria-labelledby="mk-funnels-title">
     <div class="od-card-head"><h2 id="mk-funnels-title" class="lead-card-title">Por funil</h2></div>

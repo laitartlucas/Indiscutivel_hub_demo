@@ -2,9 +2,9 @@
 // Instagram lançadas à mão (sem sobreposição de período), visão geral com CPL/CAC/ROAS/ROI, a campanha de contatos e
 // oportunidades (com herança) e os números de marketing por aluna para a mentora. Mesmo contrato do servidor
 // (docs/superpowers/specs/2026-11-06-entrega-4-marketing.md), sobre o estado em memória. Fórmulas só em marketing-data.js.
-import { fromCents, periodRange, toCents, todayInBrasilia } from './finance-data.js';
+import { fromCents, overviewQueryProblem, overviewRange, periodRange, toCents, todayInBrasilia } from './finance-data.js';
 import {
-  campaignSeries, campaignStatus, CAMPAIGN_STATUSES, CHANNELS, engagementRate, instagramGrowth, marketingReport, metricsByCampaign, metricsFor, periodsOverlap,
+  campaignSeries, campaignStatus, CAMPAIGN_STATUSES, CHANNELS, engagementRate, instagramGrowth, marketingReport, metricsByCampaign, metricsByChannel, metricsFor, periodsOverlap,
 } from './marketing-data.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -111,7 +111,7 @@ export function createMarketingDemo(d) {
             createdAt: s.createdAt, dealCampaignId: deal?.campaignId ?? null, personCampaignId: personById.get(s.personId).campaignId ?? null, dealFunnelId: deal?.funnelId ?? null,
           };
         }),
-      spend: mine(table('marketingSpend'), u).map((s) => ({ spentOn: s.spentOn, amount: s.amount, campaignId: s.campaignId ?? null })),
+      spend: mine(table('marketingSpend'), u).map((s) => ({ spentOn: s.spentOn, amount: s.amount, campaignId: s.campaignId ?? null, channel: s.channel ?? 'other' })),
     };
   }
 
@@ -404,8 +404,11 @@ export function createMarketingDemo(d) {
 
   function overview(searchParams) {
     const u = d.requireStudent();
-    const { period } = readQuery(searchParams, { period: PERIOD_RULE }, { period: 'month' });
-    const w = periodWindow(period);
+    // Entrega 7: período corrente ou um mês específico AAAA-MM (o formato fino é conferido em overviewQueryProblem).
+    const query = readQuery(searchParams, { period: PERIOD_RULE, month: { pattern: /^.*$/ } }, {});
+    const problem = overviewQueryProblem(query, today());
+    if (problem) throw Errors.validation([problem]);
+    const w = overviewRange(query, today());
     const f = facts(u);
     const campaigns = campaignsOf(u).map((c) => ({ id: c.id, name: c.name, channel: c.channel, archived: c.archivedAt != null }));
     const funnels = mine(db().funnels, u)
@@ -418,6 +421,9 @@ export function createMarketingDemo(d) {
       status: 200,
       body: {
         period: w, ...report, instagram: latest ? igDto(latest) : null,
+        // Entrega 7: por canal (investimento pelo canal do gasto; leads, vendas e receita pelo canal da campanha) e campanhas ativas hoje.
+        byChannel: metricsByChannel(f, w, campaigns),
+        activeCampaigns: activeCampaignsOf(u),
       },
     };
   }
@@ -428,15 +434,18 @@ export function createMarketingDemo(d) {
     const { period } = readQuery(searchParams, { period: PERIOD_RULE }, { period: 'month' });
     const student = UUID.test(id) ? db().users.find((x) => x.id === id && x.role === 'user') : null;
     if (!student) throw Errors.notFound('Aluna não encontrada.');
+    return { status: 200, body: mentoraBody(student, period) };
+  }
+
+  /** Corpo de GET /mentora/students/:id/marketing (também usado, por aluna, em GET /mentora/business). */
+  function mentoraBody(student, period) {
     const w = periodWindow(period);
     const m = metricsFor(facts(student), w);
-    const at = today();
-    const activeCampaigns = campaignsOf(student).filter((c) => campaignStatus({ ...c, archived: c.archivedAt != null }, at) === 'active').length;
-    return {
-      status: 200,
-      body: { period: w, investment: m.investment, leads: m.leads, cpl: m.cpl, newClients: m.newClients, cac: m.cac, revenue: m.revenue, roas: m.roas, roi: m.roi, activeCampaigns },
-    };
+    return { period: w, investment: m.investment, leads: m.leads, cpl: m.cpl, newClients: m.newClients, cac: m.cac, revenue: m.revenue, roas: m.roas, roi: m.roi, activeCampaigns: activeCampaignsOf(student) };
   }
+
+  /** Campanhas ativas hoje (fotografia: não depende do período). */
+  const activeCampaignsOf = (u) => campaignsOf(u).filter((c) => campaignStatus({ ...c, archived: c.archivedAt != null }, today()) === 'active').length;
 
   // ---------------------------------------------------------------- o que a Central Comercial usa (contato e oportunidade)
 
@@ -475,6 +484,7 @@ export function createMarketingDemo(d) {
       ['GET', new RegExp(`^mentora/students/${SEG}/marketing$`), (m, q) => mentoraMarketing(m[1], q)],
     ],
     readCampaignRef,
+    mentoraBody,
     /** Nome da campanha (da aluna) ou null. */
     campaignName: (u, id) => (id ? (findOwnCampaign(u, id)?.name ?? null) : null),
   };

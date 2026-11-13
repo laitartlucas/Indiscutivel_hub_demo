@@ -23,10 +23,10 @@ export const RULES = {
 export const RULE_KINDS = Object.keys(RULES);
 export const describeRule = (kind, value) => RULES[kind].describe(value);
 
+// Sem as antigas "Primeiros R$ 10K" e "R$ 50K" (seed_key sales-10k e sales-50k): arquivadas na Entrega 6 (decisão B4), trocadas
+// pelos marcos de faturamento autodeclarado (revenue-data.js). Quem já desbloqueou continua com o desbloqueio no histórico.
 export const SEED_ACHIEVEMENTS = [
   { key: 'first-sale', title: 'Primeira venda', description: 'Primeira oportunidade marcada como ganha.', category: 'vendas', ruleKind: 'deals_won_count', ruleValue: 1, xpReward: 100 },
-  { key: 'sales-10k', title: 'Primeiros R$ 10K', description: 'R$ 10 mil em vendas ganhas registradas no Hub.', category: 'vendas', ruleKind: 'revenue_won_total', ruleValue: 10000, xpReward: 200 },
-  { key: 'sales-50k', title: 'Primeiros R$ 50K', description: 'R$ 50 mil em vendas ganhas registradas no Hub.', category: 'vendas', ruleKind: 'revenue_won_total', ruleValue: 50000, xpReward: 500 },
   { key: 'tasks-25', title: '25 tarefas', description: 'Vinte e cinco tarefas concluídas.', category: 'consistencia', ruleKind: 'tasks_done_count', ruleValue: 25, xpReward: 100 },
   { key: 'tasks-100', title: '100 tarefas', description: 'Cem tarefas concluídas.', category: 'consistencia', ruleKind: 'tasks_done_count', ruleValue: 100, xpReward: 300 },
   { key: 'streak-7', title: 'Rotina de ferro', description: 'Sete dias seguidos com atividade no Hub.', category: 'consistencia', ruleKind: 'streak_days', ruleValue: 7, xpReward: 150 },

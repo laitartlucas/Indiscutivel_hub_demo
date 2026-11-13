@@ -50,6 +50,14 @@ export function createGrowthDemo(d) {
   }
 
   const activeAchievements = (mentoraId) => db().achievements.filter((a) => a.mentoraId === mentoraId && a.active && !a.archivedAt);
+  /** Desbloqueadas que saíram do catálogo ativo (inativas ou arquivadas, como "Primeiros R$ 10K" na Entrega 6): ficam no histórico da aluna. */
+  function retiredAchievements(mentoraId, unlockedIds) {
+    const inCatalog = new Set(activeAchievements(mentoraId).map((a) => a.id));
+    const wanted = new Set(unlockedIds.filter((id) => !inCatalog.has(id)));
+    return db()
+      .achievements.filter((a) => a.mentoraId === mentoraId && wanted.has(a.id))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+  }
 
   function visibleChallenges(u) {
     return db().challenges.filter((c) => c.mentoraId === mentoraIdOf() && c.status === 'published' && isEligible(c.classNames, u.className));
@@ -244,7 +252,7 @@ export function createGrowthDemo(d) {
     const metrics = measureRules(u);
     const linked = new Map();
     for (const c of visibleChallenges(u)) if (c.achievementId) linked.set(c.achievementId, { id: c.id, title: c.title });
-    const data = activeAchievements(mentoraId).map((a) => achievementDto(a, unlocks.get(a.id), metrics, linked));
+    const data = [...activeAchievements(mentoraId), ...retiredAchievements(mentoraId, [...unlocks.keys()])].map((a) => achievementDto(a, unlocks.get(a.id), metrics, linked));
     const unlocked = data.filter((a) => a.unlocked).sort((a, b) => (b.unlockedAt ?? '').localeCompare(a.unlockedAt ?? ''));
     if (events.achievements.length || events.challenges.length || events.xp) d.persist();
     return { status: 200, body: { total: data.length, unlocked: unlocked.length, recent: unlocked[0] ?? null, data, ...xpField(events.xp), ...growthField(events) } };
@@ -253,9 +261,11 @@ export function createGrowthDemo(d) {
   function recentAchievements(searchParams) {
     const u = d.requireStudent();
     noQuery(searchParams);
-    const byId = new Map(activeAchievements(mentoraIdOf()).map((a) => [a.id, a]));
-    const data = db().achievementUnlocks
-      .filter((x) => x.userId === u.id && byId.has(x.achievementId))
+    const mentoraId = mentoraIdOf();
+    const mine = db().achievementUnlocks.filter((x) => x.userId === u.id);
+    const byId = new Map([...activeAchievements(mentoraId), ...retiredAchievements(mentoraId, mine.map((x) => x.achievementId))].map((a) => [a.id, a]));
+    const data = mine
+      .filter((x) => byId.has(x.achievementId))
       .sort((a, b) => b.unlockedAt.localeCompare(a.unlockedAt))
       .slice(0, 5)
       .map((x) => {

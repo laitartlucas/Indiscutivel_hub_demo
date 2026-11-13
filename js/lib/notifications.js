@@ -26,6 +26,10 @@ export const KIND_META = {
   phase_changed: { icon: 'progresso', tone: 'gold' },
   checkin_feedback: { icon: 'chat', tone: 'green' },
   checkin_received: { icon: 'desafios', tone: 'sage' },
+  // Faturamento autodeclarado (Entrega 6): marco alcançado, PAD GOLD e marco em revisão (aviso neutro, não alarme).
+  revenue_milestone: { icon: 'conquistas', tone: 'gold', label: 'Marco de faturamento' },
+  pad_gold: { icon: 'gem', tone: 'gold', label: 'PAD GOLD' },
+  revenue_review: { icon: 'alert', tone: 'sage', label: 'Marco em revisão' },
 };
 const FALLBACK_META = { icon: 'bell', tone: 'paper' };
 export const kindMeta = (kind) => (Object.hasOwn(KIND_META, kind) ? KIND_META[kind] : FALLBACK_META);

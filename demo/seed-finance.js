@@ -41,6 +41,12 @@ export function buildFinanceSeed({ now, uid, eid, did, pid }) {
     [3, 3002, 3002, null, 'Imersão presencial', '3500.00', '0.00', 8, 'credit_card', 'simple', null, [['pay', 1, '3500.00', 8]]],
     [4, 4003, 4003, null, 'Consultoria de marca', '1800.00', '0.00', 6, 'boleto', 'simple', null, []],
     [7, 7002, 7002, null, 'Grupo VIP · trimestral', '1200.00', '0.00', 4, 'pix', 'installments', { count: 2 }, [['pay', 1, '600.00', 4]]],
+    // Entrega 7: vendas de meses anteriores de outras alunas (séries mensais e o negócio das alunas com histórico).
+    [3, 3008, 3008, null, 'Mentoria individual', '4500.00', '0.00', 120, 'pix', 'simple', null, [['pay', 1, '4500.00', 120]]],
+    [3, 3009, 3009, null, 'Programa de aceleração', '7200.00', '0.00', 75, 'pix', 'installments', { count: 3 }, [['pay', 1, '2400.00', 75], ['pay', 2, '2400.00', 45], ['pay', 3, '2400.00', 15]]],
+    [4, 4004, 4004, null, 'Consultoria de imagem', '2200.00', '0.00', 100, 'credit_card', 'simple', null, [['pay', 1, '2200.00', 100]]],
+    [6, 6001, 6001, null, 'Sessão estratégica', '1500.00', '0.00', 90, 'pix', 'simple', null, [['pay', 1, '1500.00', 90]]],
+    [6, 6002, 6002, null, 'Mentoria em grupo', '3000.00', '0.00', 40, 'boleto', 'installments', { count: 2 }, [['pay', 1, '1500.00', 40]]],
   ];
 
   const sales = [];

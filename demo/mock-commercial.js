@@ -3,6 +3,7 @@
 // Mesmo contrato do servidor (docs/superpowers/specs/2026-11-04-entrega-2-central-comercial.md), sobre o estado em memória.
 // Recebe do mock principal só o que precisa (banco, relógio, XP, validação) e, do Financeiro (mock-finance.js), as vendas do contato.
 import { normalizeEmail, normalizeInstagram, normalizeWhatsapp } from '../shared/contact.js';
+import { overviewQueryProblem, overviewRange, todayInBrasilia } from './finance-data.js';
 import { DEFAULT_FUNNELS, defaultFunnelRows } from './funnels-data.js';
 import { conversionRate } from './reports-data.js';
 
@@ -791,9 +792,11 @@ const CONTACT_FIELDS = ['name', 'phone', 'whatsapp', 'instagram', 'email', 'sour
     return { from, to, start: first + BRT_OFFSET * MINUTE, end: endExclusive + BRT_OFFSET * MINUTE };
   }
 
-  /** Números de uma aluna no período (mesma conta para a visão geral dela e para a mentora). */
-  function commercialNumbers(u, period) {
-    const w = periodWindow(period);
+  /** Janela de dias `{ from, to }` (inclusive) em instantes de Brasília (`start`/`end` em ms, fim exclusivo), como monthWindow. */
+  const rangeWindow = ({ from, to }) => ({ from, to, start: dayStart(from), end: dayStart(to) + DAY });
+
+  /** Números de uma aluna na janela `w` (mesma conta para a visão geral dela e para a mentora). */
+  function commercialNumbers(u, w) {
     const inside = (iso) => iso != null && Date.parse(iso) >= w.start && Date.parse(iso) < w.end;
     const people = mine(db().people, u);
     const ids = new Set(people.map((p) => p.id));
@@ -812,11 +815,31 @@ const CONTACT_FIELDS = ['name', 'phone', 'whatsapp', 'instagram', 'email', 'sour
 
   const PERIOD_QUERY = { period: { enum: PERIODS, message: 'Período inválido.' } };
 
+  /** Etapas do funil na ordem (Entrega 7): abertas = oportunidades que estão nelas agora; ganha/perdida = fechadas na janela. */
+  function stageRows(f, n) {
+    return stagesOf(f.id).map((s) => {
+      const rows = n.deals.filter((x) => x.funnelId === f.id && x.stageId === s.id && (s.kind === 'open' || n.inside(x.closedAt)));
+      return { stageId: s.id, name: s.name, kind: s.kind, count: rows.length, total: money(rows) };
+    });
+  }
+
   function overview(searchParams) {
     const u = d.requireStudent();
-    const { period } = readQuery(searchParams, PERIOD_QUERY, { period: 'month' });
+    // Entrega 7: período corrente ou um mês específico AAAA-MM (o formato fino é conferido em overviewQueryProblem).
+    const query = readQuery(searchParams, { ...PERIOD_QUERY, month: { pattern: /^.*$/ } }, {});
+    const today = todayInBrasilia(d.clock());
+    const problem = overviewQueryProblem(query, today);
+    if (problem) throw Errors.validation([problem]);
     ensureFunnels(u);
-    const n = commercialNumbers(u, period);
+    const n = commercialNumbers(u, rangeWindow(overviewRange(query, today)));
+    const reasons = new Map();
+    for (const x of n.lost) {
+      const reason = x.lostReason?.trim() || 'Sem motivo';
+      reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+    }
+    const labels = new Map(d.leadSources(u).map((s) => [s.key, s.label]));
+    const sources = new Map();
+    for (const p of n.people) if (n.inside(p.createdAt)) sources.set(p.source, (sources.get(p.source) ?? 0) + 1);
     const statuses = n.people.map((p) => statusOf(n.deals.filter((x) => x.personId === p.id), finance.hasActiveSale(u, p.id)));
     return {
       status: 200,
@@ -832,7 +855,15 @@ const CONTACT_FIELDS = ['name', 'phone', 'whatsapp', 'instagram', 'email', 'sour
         byFunnel: n.byFunnel.map((x) => ({
           funnelId: x.f.id, key: x.f.key, name: x.f.name, open: x.open.length, won: x.won.length, lost: x.lost.length, wonTotal: money(x.won),
           conversionRate: conversionRate(x.won.length, x.lost.length),
+          stages: stageRows(x.f, n),
         })),
+        // Entrega 7: motivos das perdidas na janela e contatos novos por origem (rótulo da lista de origens da aluna; fora dela = a chave).
+        lostReasons: [...reasons.entries()]
+          .map(([reason, count]) => ({ reason, count }))
+          .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason, 'pt-BR')),
+        bySource: [...sources.entries()]
+          .map(([source, count]) => ({ source, label: labels.get(source) ?? source, count }))
+          .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'pt-BR') || cmp(a.source, b.source)),
       },
     };
   }
@@ -843,19 +874,21 @@ const CONTACT_FIELDS = ['name', 'phone', 'whatsapp', 'instagram', 'email', 'sour
     const { period } = readQuery(searchParams, PERIOD_QUERY, { period: 'month' });
     const student = UUID.test(id) ? db().users.find((x) => x.id === id && x.role === 'user') : null;
     if (!student) throw Errors.notFound('Aluna não encontrada.');
-    const n = commercialNumbers(student, period);
+    return { status: 200, body: mentoraBody(student, period) };
+  }
+
+  /** Corpo de GET /mentora/students/:id/commercial (também usado, por aluna, em GET /mentora/business). */
+  function mentoraBody(student, period) {
+    const n = commercialNumbers(student, periodWindow(period));
     return {
-      status: 200,
-      body: {
-        period: { from: n.w.from, to: n.w.to },
-        newContacts: n.people.filter((p) => n.inside(p.createdAt)).length,
-        open: { count: n.open.length, total: money(n.open) },
-        won: { count: n.won.length, total: money(n.won) },
-        lost: { count: n.lost.length },
-        conversionRate: conversionRate(n.won.length, n.lost.length),
-        // Nome PADRÃO do funil pela chave (nunca o texto que a aluna digitou ao renomear): a mentora não recebe texto livre da aluna.
-        byFunnel: n.byFunnel.map((x) => ({ name: STANDARD_NAMES.get(x.f.key) ?? 'Outro funil', open: x.open.length, won: x.won.length, lost: x.lost.length })),
-      },
+      period: { from: n.w.from, to: n.w.to },
+      newContacts: n.people.filter((p) => n.inside(p.createdAt)).length,
+      open: { count: n.open.length, total: money(n.open) },
+      won: { count: n.won.length, total: money(n.won) },
+      lost: { count: n.lost.length },
+      conversionRate: conversionRate(n.won.length, n.lost.length),
+      // Nome PADRÃO do funil pela chave (nunca o texto que a aluna digitou ao renomear): a mentora não recebe texto livre da aluna.
+      byFunnel: n.byFunnel.map((x) => ({ name: STANDARD_NAMES.get(x.f.key) ?? 'Outro funil', open: x.open.length, won: x.won.length, lost: x.lost.length })),
     };
   }
 
@@ -897,5 +930,6 @@ const CONTACT_FIELDS = ['name', 'phone', 'whatsapp', 'instagram', 'email', 'sour
       ['GET', new RegExp(`^mentora/students/${SEG}/commercial$`), (m, q) => mentoraCommercial(m[1], q)],
     ],
     statusOf,
+    mentoraBody,
   };
 }

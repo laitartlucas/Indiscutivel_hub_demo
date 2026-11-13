@@ -281,3 +281,33 @@ export function periodRange(today, period) {
   const months = period === 'year' ? 12 : period === 'quarter' ? 3 : 1;
   return { from: new Date(Date.UTC(y, firstMonth, 1)).toISOString().slice(0, 10), to: new Date(Date.UTC(y, firstMonth + months, 0)).toISOString().slice(0, 10) };
 }
+
+// ---------------------------------------------------------------------------------------------------------------- só da demo
+
+/** Mês 'AAAA-MM' (anos 2000–2100), como isMonthKey de server/src/domain/calendar.ts. */
+export const OVERVIEW_MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
+
+/**
+ * Filtro das visões gerais (Entrega 7; espelho de overviewQuerySchema do servidor): `{ period?, month? }` já lidos. Devolve o
+ * primeiro problema (`{ field, message }`) ou null: mês fora do formato, no futuro (depois do mês de `today`) ou com um período
+ * que não seja o mensal.
+ */
+export function overviewQueryProblem(query, today) {
+  if (query.month !== undefined) {
+    const m = OVERVIEW_MONTH.exec(query.month);
+    if (!m || Number(m[1]) < 2000 || Number(m[1]) > 2100) return { field: 'month', message: 'Informe o mês no formato AAAA-MM.' };
+    if (query.month > today.slice(0, 7)) return { field: 'month', message: 'O mês não pode estar no futuro.' };
+    if (query.period !== undefined && query.period !== 'month') return { field: 'period', message: 'Use o mês específico só com o período mensal.' };
+  }
+  return null;
+}
+
+/** Janela das visões gerais (overviewWindow do servidor): o mês dado inteiro ou o período corrente (padrão: mês). `{ from, to }`. */
+export function overviewRange(query, today) {
+  if (query.month !== undefined) {
+    const y = Number(query.month.slice(0, 4));
+    const m = Number(query.month.slice(5, 7)) - 1;
+    return { from: `${query.month}-01`, to: new Date(Date.UTC(y, m + 1, 0)).toISOString().slice(0, 10) };
+  }
+  return periodRange(today, query.period ?? 'month');
+}

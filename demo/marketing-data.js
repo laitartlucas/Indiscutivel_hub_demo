@@ -230,6 +230,41 @@ export function marketingReport(data, period, campaigns, funnels) {
   };
 }
 
+/**
+ * Por canal no período (Entrega 7). Investimento = gastos pelo CANAL DO GASTO; leads, vendas e receita = pelo canal da campanha
+ * atribuída (contato: a campanha dele; venda ativa: `saleCampaignId`). O que não tem campanha vai para a linha `channel: null`
+ * ("Sem campanha"). Cada coluna fecha com o total de `metricsFor`. Só canais com algum número, na ordem de CHANNELS; a linha sem
+ * campanha por último. `campaigns`: `[{ id, channel }]`.
+ */
+export function metricsByChannel(data, period, campaigns) {
+  const channelOf = new Map(campaigns.map((c) => [c.id, c.channel]));
+  const acc = new Map();
+  const bucket = (key) => {
+    let b = acc.get(key);
+    if (!b) acc.set(key, (b = { investment: 0, leads: 0, sales: 0, revenue: 0 }));
+    return b;
+  };
+  const byCampaign = (id) => (id === null ? null : (channelOf.get(id) ?? 'other'));
+  for (const s of data.spend) if (within(s.spentOn, period)) bucket(s.channel ?? 'other').investment += toCents(s.amount);
+  for (const c of data.contacts) if (within(c.createdOn, period)) bucket(byCampaign(c.campaignId)).leads += 1;
+  for (const s of data.sales) {
+    if (s.status !== 'active' || !within(s.closedOn, period)) continue;
+    const b = bucket(byCampaign(saleCampaignId(s)));
+    b.sales += 1;
+    b.revenue += toCents(s.finalValue);
+  }
+  const order = [...CHANNELS, null];
+  return order
+    .filter((key) => {
+      const b = acc.get(key);
+      return !!b && (b.investment !== 0 || b.leads > 0 || b.sales > 0);
+    })
+    .map((key) => {
+      const b = acc.get(key);
+      return { channel: key, label: key === null ? 'Sem campanha' : CHANNEL_LABELS[key], investment: fromCents(b.investment), leads: b.leads, sales: b.sales, revenue: fromCents(b.revenue) };
+    });
+}
+
 /** Os `count` meses (AAAA-MM) que terminam no mês de `today`, do mais antigo ao corrente. */
 export function lastMonths(today, count = SERIES_MONTHS) {
   const first = `${today.slice(0, 7)}-01`;

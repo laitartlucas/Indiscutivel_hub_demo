@@ -17,6 +17,7 @@ import { mountStudentCommercial } from './student-commercial.js';
 import { mountStudentFinance } from './student-finance.js';
 import { mountStudentMarketing } from './student-marketing.js';
 import { mountStudentCheckins, mountStudentJourney } from './student-journey.js';
+import { mountStudentRevenue } from './revenue-ui.js';
 
 const INVITE_LABELS = { pending: 'Pendente', expired: 'Expirado', accepted: 'Aceito', cancelled: 'Cancelado' };
 const INVITE_TONES = { pending: 'warn', expired: 'bad', accepted: 'good', cancelled: 'neutral' };
@@ -135,13 +136,15 @@ export function renderStudentProfile({ root, session, api, navigate, params }) {
     eyebrow: html`Mentoria · <a class="back-link" href="#/alunas">← Minhas alunas</a>`,
     subtitle: html`<span id="profile-subtitle"></span>`,
     actions: html`<span class="profile-actions" id="profile-actions"></span>`,
-    content: html`<div id="profile-growth"></div><div class="growth jr-profile"><div id="profile-journey"></div><div id="profile-checkins"></div></div><div id="profile-commercial"></div><div id="profile-finance"></div><div id="profile-marketing"></div><div id="profile-region" aria-live="off">${skeleton(4)}</div>`,
+    content: html`<div id="profile-growth"></div><div class="growth jr-profile"><div id="profile-journey"></div><div id="profile-checkins"></div></div><div id="profile-revenue"></div><div id="profile-commercial"></div><div id="profile-finance"></div><div id="profile-marketing"></div><div id="profile-region" aria-live="off">${skeleton(4)}</div>`,
   });
 
   const region = root.querySelector('#profile-region');
   const growthHost = root.querySelector('#profile-growth');
   const journeyHost = root.querySelector('#profile-journey');
   const checkinsHost = root.querySelector('#profile-checkins');
+  const revenueHost = root.querySelector('#profile-revenue');
+  let disposeRevenue = null;
   let disposeJourney = null;
   let disposeCheckins = null;
   const commercialHost = root.querySelector('#profile-commercial');
@@ -194,6 +197,8 @@ export function renderStudentProfile({ root, session, api, navigate, params }) {
         const canKey = (key) => can(session.state.user, key);
         disposeJourney = mountStudentJourney({ host: journeyHost, api, student: data.student, can: canKey });
         disposeCheckins = mountStudentCheckins({ host: checkinsHost, api, student: data.student, can: canKey });
+        // Faturamento autodeclarado e marcos (Entrega 6): só com a permissão revenue.view.
+        if (canKey('revenue.view')) disposeRevenue = mountStudentRevenue({ host: revenueHost, api, student: data.student });
         // Indicadores comerciais (só números agregados): só para quem tem a permissão business.view.
         if (can(session.state.user, 'business.view')) {
           disposeCommercial = mountStudentCommercial({ host: commercialHost, api, studentId: data.student.id });
@@ -381,6 +386,7 @@ export function renderStudentProfile({ root, session, api, navigate, params }) {
     growth?.dispose();
     disposeJourney?.();
     disposeCheckins?.();
+    disposeRevenue?.();
     disposeCommercial?.();
     disposeFinance?.();
     disposeMarketing?.();

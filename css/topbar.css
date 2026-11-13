@@ -165,7 +165,12 @@ kbd { display: inline-block; min-width: 24px; padding: 4px 7px; border: 1px soli
 
 /* ---------- responsivo ---------- */
 @media (max-width: 1024px) {
-  .gsearch { flex-basis: 320px; }
+  /* trilho do menu + busca + ajuda + IA + sino + avatar: a busca é quem cede espaço; os botões nunca encolhem nem se sobrepõem */
+  .gsearch { flex-basis: 300px; }
+  .topbar-pop,
+  .topbar-btn.topbar-ia { flex: none; }
+  .topbar-user-name,
+  .topbar-user-meta { max-width: 160px; }
   .help-layout { grid-template-columns: minmax(0, 1fr); }
   .help-toc { position: static; }
   .help-toc ul { display: flex; flex-wrap: wrap; gap: 6px; }

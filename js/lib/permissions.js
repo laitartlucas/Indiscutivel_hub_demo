@@ -11,6 +11,8 @@ export const PERMISSION_KEYS = [
   'followup.manage',
   // "Indicadores de negócio das alunas": só números agregados da Central Comercial (nunca nomes ou contatos).
   'business.view',
+  // "Faturamento das alunas": o faturamento AUTODECLARADO de cada aluna e os marcos (Entrega 6).
+  'revenue.view',
   'reports.view',
   'challenges.manage',
   'achievements.manage',

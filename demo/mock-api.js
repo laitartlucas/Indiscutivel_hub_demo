@@ -12,6 +12,10 @@ import { createFinanceDemo } from './mock-finance.js';
 import { createMarketingDemo } from './mock-marketing.js';
 import { createJourneyDemo } from './mock-journey.js';
 import { migrateJourney } from './seed-journey.js';
+import { createRevenueDemo } from './mock-revenue.js';
+import { createReports7Demo } from './mock-reports7.js';
+import { migrateRevenue } from './seed-revenue.js';
+import { PERMISSIONS } from './team-data.js';
 import { ASSISTANT_EMAIL, buildSeed, DEMO_PASSWORD, MENTORA_EMAIL, SCHEMA_VERSION, STUDENT_EMAIL } from './seed.js';
 
 export { ASSISTANT_EMAIL, DEMO_PASSWORD, MENTORA_EMAIL, STUDENT_EMAIL };
@@ -393,8 +397,10 @@ export function createDemoApi(options = {}) {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.schema === SCHEMA_VERSION && Array.isArray(parsed.users)) return parsed;
-        // Versão 18 (antes da Entrega 5): mantém o que a pessoa já fez e só acrescenta a jornada e os check-ins.
-        if (parsed?.schema === 18 && Array.isArray(parsed.users)) return migrateJourney(parsed, clock(), SCHEMA_VERSION);
+        // Versão 19 (antes da Entrega 6): mantém o que a pessoa já fez e só acrescenta o faturamento autodeclarado (e `revenue.view` à assistente).
+        if (parsed?.schema === 19 && Array.isArray(parsed.users)) return migrateRevenue(parsed, clock(), SCHEMA_VERSION, PERMISSIONS);
+        // Versão 18 (antes da Entrega 5): acrescenta a jornada e os check-ins e, depois, o faturamento.
+        if (parsed?.schema === 18 && Array.isArray(parsed.users)) return migrateRevenue(migrateJourney(parsed, clock(), 19), clock(), SCHEMA_VERSION, PERMISSIONS);
       }
     } catch {
       // cópia ilegível: recomeça do exemplo
@@ -1668,6 +1674,8 @@ export function createDemoApi(options = {}) {
     for (const [key, value] of Object.entries(fields)) if (value !== undefined) next[key] = value;
     if (next.joinedOn && next.endsOn && next.endsOn < next.joinedOn) throw Errors.validation([{ field: 'endsOn', message: DATES_ORDERED }]);
     Object.assign(row, next);
+    // Entrada na mentoria mudou: o acumulado do faturamento muda junto; reavalia os marcos já (mesmas regras e avisos de um lançamento).
+    if (b.joinedOn !== undefined) revenue.reevaluateStudent(row);
     return { status: 200, body: studentDto(row) };
   }
 
@@ -1874,6 +1882,7 @@ export function createDemoApi(options = {}) {
     /^#\/(tarefas|calendario|perfil|configuracoes|alunas|leads|pessoas|oportunidades|empresas|ajuda|notificacoes|metas|progresso|conquistas|desafios|gestao\/conquistas|gestao\/desafios|gestao\/checkins)$/,
     /^#\/(alunas|leads|oportunidades|empresas|desafios)\/[0-9a-f-]{36}$/i,
     /^#\/comercial(\/(contatos|pipeline|atividades))?$/,
+    /^#\/(faturamento|faturamento-alunas)$/,
     /^#\/comercial\/(contatos|oportunidades)\/[0-9a-f-]{36}$/i,
   ];
   const clip = (text, max) => {
@@ -2328,11 +2337,25 @@ export function createDemoApi(options = {}) {
     permissionsOf: (user) => team.permissionsOf(user),
   });
 
+  // Faturamento autodeclarado e marcos 10k/30k/50k/100k + PAD GOLD (mesmas regras do servidor; ver mock-revenue.js).
+  const revenue = createRevenueDemo({
+    getDb: () => db, clock, stamp, newId, Errors, createIssues, requireBody, onlyKeys, readQuery, requireAuth, requireStudent, addNotification,
+    PAGING, PAGING_DEFAULTS, UUID, MULTILINE_CONTROL_CHARS,
+    phaseOf: (studentId) => journey.phaseOf(studentId),
+  });
+
   // Painel da mentora, lista enriquecida, notas privadas e sessões de mentoria (mesmas regras do servidor; ver mock-mentora.js).
   const mentoriaPanel = createMentoraDemo({
     getDb: () => db, clock, stamp, newId, Errors, createIssues, requireBody, onlyKeys, readVersion, requireAuth, requireStudent, readQuery,
     PAGING, PAGING_DEFAULTS, STUDENT_STATUSES, fold, studentDto, levelFor, LEVELS, UUID, ISO_INSTANT, CONTROL_CHARS, MULTILINE_CONTROL_CHARS, addNotification,
     phaseOf: (studentId) => journey.phaseOf(studentId),
+    // Campos da Entrega 7 do painel (mock-reports7.js, criado mais abaixo: lido só na hora da chamada).
+    overviewExtras: (period) => reports7.overviewExtras(period),
+    // Acumulado e PAD GOLD na lista de alunas: só para quem tem `revenue.view` (quem fez a requisição de verdade, não a dona).
+    revenueTotalsFor(studentId) {
+      const who = findUser(realActorId ?? session?.userId);
+      return who && team.permissionsOf(who).includes('revenue.view') ? revenue.totalsOf(studentId) : null;
+    },
     // Metas do mês corrente: só contagens (total e atingidas ou no ritmo), nunca alvo nem realizado.
     goalCounts(u, tz) {
       const month = currentMonth(tz);
@@ -2371,6 +2394,20 @@ export function createDemoApi(options = {}) {
     toCents, fromCents, fold, byText, sortRows, isPlainObject, UUID, CONTROL_CHARS, MULTILINE_CONTROL_CHARS, requireStudent, requireAuth, awardXp, withXp, allowedSource,
     finance,
     marketing,
+    // Lista de origens da aluna (rótulos do "por origem" da visão geral).
+    leadSources: (u) => effectiveSources(u),
+  });
+
+  // Painéis e relatórios da Entrega 7: negócio das alunas somado, relatórios da jornada e os campos novos do painel (ver mock-reports7.js).
+  const reports7 = createReports7Demo({
+    getDb: () => db, clock, readQuery, requireAuth, statusOf, PAGING, PAGING_DEFAULTS,
+    phaseOf: (studentId) => journey.phaseOf(studentId),
+    commercial, finance, marketing,
+    // Marcos de faturamento só para quem fez a requisição de verdade e tem `revenue.view` (a equipe age como a dona).
+    canSeeRevenue() {
+      const who = findUser(realActorId ?? session?.userId);
+      return Boolean(who && team.permissionsOf(who).includes('revenue.view'));
+    },
   });
 
   const SEG = '([^/]+)';
@@ -2381,9 +2418,11 @@ export function createDemoApi(options = {}) {
     ...marketing.routes,
     ...growth.routes,
     ...journey.routes,
+    ...revenue.routes,
     ...mentoriaPanel.routes,
     ...followupDemo.routes,
     ...reports.routes,
+    ...reports7.routes,
     ['POST', /^auth\/login$/, (_m, _q, body) => login(body)],
     ['POST', /^auth\/logout$/, () => {
       saveSession(null);

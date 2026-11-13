@@ -104,3 +104,102 @@
   .rp-kpis { grid-template-columns: minmax(0, 1fr); }
   .rp-col-value { font-size: 10px; }
 }
+
+/* ==========================================================================
+   Entrega 7: "Meu negócio" (Painel da aluna), abas dos Relatórios (aluna e mentora) e "Negócio das alunas" (Painel da mentora).
+   Reaproveita .lead-card, .fin-kpi, .rp-sources, .rp-cols e .segments; aqui só o que é novo. Só tokens do kit.
+   ========================================================================== */
+
+/* ---------- filtro de período ---------- */
+.biz-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.biz-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.biz-filter .segments { margin-bottom: 0; }
+.biz-month { display: flex; align-items: center; gap: 8px; }
+.biz-month-label { font-size: var(--fs-small); font-weight: 700; color: var(--brown); white-space: nowrap; }
+.biz-month-select { width: auto; min-width: 190px; min-height: var(--control-h); }
+.biz-range { margin: 0; font-size: var(--fs-small); }
+.biz-range:empty { display: none; }
+
+/* ---------- grupos (uma natureza por cartão) ---------- */
+.biz-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.biz-groups > * { min-width: 0; }
+.biz-group { gap: 14px; }
+.biz-group .lead-card-title { font-size: 19px; }
+.biz-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.biz-kpi { padding: 12px 14px; gap: 4px; }
+.biz-kpi .fin-kpi-value { font-size: 21px; }
+.biz-tops { display: grid; gap: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.biz-bars li { grid-template-columns: minmax(64px, 110px) minmax(0, 1fr) minmax(30px, auto); }
+.biz-rank { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; counter-reset: biz; }
+.biz-rank li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: var(--fs-small); counter-increment: biz; }
+.biz-rank li::before { content: counter(biz) 'º'; flex: none; width: 22px; font-weight: 700; color: var(--gold-text); }
+.biz-rank-name { flex: 1; min-width: 0; color: var(--brown); overflow-wrap: anywhere; }
+.biz-rank-value { display: flex; flex-direction: column; align-items: flex-end; font-weight: 700; color: var(--green-900); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.biz-rank-sub { font-size: 11.5px; font-weight: 500; color: var(--ink-muted); }
+.biz-error { padding: 4px 0; }
+
+/* ---------- abas dos relatórios ---------- */
+.rp-tabs { margin-bottom: var(--space-4); }
+.rp-tabs .tabs-tab { min-height: var(--control-h); }
+.rp-panel { display: flex; flex-direction: column; gap: 18px; }
+.rp-panel[hidden] { display: none; }
+.rp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.rp-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.rp-duo > * { min-width: 0; }
+.rp-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; font-size: var(--fs-caption); color: var(--ink-muted); }
+.rp-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.rp-received { background: var(--gold-500); }
+.rp-dot-received { background: var(--gold-500); }
+.rp-stage-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--ink-muted); }
+.rp-stage-list strong { color: var(--ink); font-weight: 700; }
+.rp-sub { display: block; font-size: 12px; color: var(--ink-muted); }
+.rp-note { margin: 0; font-size: var(--fs-small); color: var(--ink-muted); }
+
+/* ---------- mentora: seções do Painel ---------- */
+.mp-section { display: flex; flex-direction: column; gap: 18px; }
+.mp-section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; padding-top: 6px; border-top: 1px solid var(--line); }
+.mp-section-head h2 { margin: 12px 0 0; font-family: var(--font-serif); font-weight: 500; font-size: var(--fs-h2); line-height: 1.2; }
+.mp-section-note { margin: 0; font-size: var(--fs-small); color: var(--ink-muted); }
+.mp-alunas-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.mp-alunas-grid > * { min-width: 0; }
+.mp-mini-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mp-achv { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.mp-achv li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: var(--fs-small); }
+.mp-achv li:last-child { border-bottom: 0; }
+.mp-achv-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mp-achv-name { font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.mp-achv-sub { color: var(--ink-muted); overflow-wrap: anywhere; }
+.mp-achv-when { flex: none; font-size: 12px; color: var(--ink-muted); white-space: nowrap; }
+
+@media (max-width: 1180px) {
+  .biz-groups { grid-template-columns: minmax(0, 1fr); }
+  .biz-kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .rp-duo,
+  .mp-alunas-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 768px) {
+  .biz-filter,
+  .biz-month { width: 100%; }
+  .biz-filter .segments { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; }
+  .biz-filter .segment { flex: 1 1 auto; justify-content: center; min-height: var(--target-min); }
+  .biz-month { flex-wrap: wrap; }
+  .biz-month-select { flex: 1 1 100%; min-width: 0; width: 100%; font-size: 16px; }
+  .rp-tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .rp-tabs .tabs-tab { flex: none; min-height: var(--target-min); }
+  .mp-mini-stats { grid-template-columns: minmax(0, 1fr); }
+  .biz-kpis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (max-width: 400px) {
+  .biz-kpis { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Celular: links das tabelas e listas dos painéis e relatórios (Entrega 7) com alvo de toque de 44 px. */
+@media (max-width: 768px) {
+  .cc-funnel-link,
+  .mp-achv-name,
+  .biz-kpi .lead-kpi-note a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--target-min);
+  }
+}

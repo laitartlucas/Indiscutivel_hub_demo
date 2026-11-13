@@ -72,6 +72,8 @@ const ROUTES = [
   { pattern: '/tarefas', view: 'tasks', access: 'user' },
   { pattern: '/calendario', view: 'calendar', access: 'user' },
   { pattern: '/metas', view: 'goals', access: 'user' },
+  // Faturamento autodeclarado (Entrega 6): a aluna informa o faturamento do mês; separado das vendas do Comercial.
+  { pattern: '/faturamento', view: 'revenue', access: 'user' },
   { pattern: '/progresso', view: 'progress', access: 'user' },
   { pattern: '/ranking', view: 'ranking', access: 'user' },
   { pattern: '/relatorios', view: 'reports', access: 'user' },
@@ -84,6 +86,7 @@ const ROUTES = [
   { pattern: '/gestao/desafios/:id', view: 'mentoraChallengeDetail', access: 'mentoria', perm: 'students.view' },
   { pattern: '/gestao/checkins', view: 'mentoraCheckins', access: 'mentoria', perm: 'students.view' },
   { pattern: '/acompanhamento', view: 'followup', access: 'mentoria', perm: 'followup.view' },
+  { pattern: '/faturamento-alunas', view: 'mentoraRevenue', access: 'mentoria', perm: 'revenue.view' },
   { pattern: '/relatorios-mentoria', view: 'mentoraReports', access: 'mentoria', perm: 'reports.view' },
   { pattern: '/componentes', view: 'styleguide', access: 'user' },
   { pattern: '/ajuda', view: 'help', access: 'user' },

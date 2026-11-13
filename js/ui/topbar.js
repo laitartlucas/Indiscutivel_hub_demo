@@ -133,8 +133,10 @@ function mountNotifications(root) {
   const dot = root.querySelector('#bell-dot');
   const readAll = root.querySelector('#notif-read-all');
   const unreadN = root.querySelector('#notif-unread-n');
-  const tabs = [...root.querySelectorAll('[data-tab]')];
   if (!bellBtn || !panel || !body) return () => {};
+  // Só as abas do painel do sino: as telas também têm abas com `data-tab` (Relatórios, Desafios...), e pegá-las aqui faria o
+  // sino "selecionar" as abas da página (e a página deixaria de trocar de aba).
+  const tabs = [...panel.querySelectorAll('[data-tab]')];
   let tab = 'all';
   let signature = '';
 

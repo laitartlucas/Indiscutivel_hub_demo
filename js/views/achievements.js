@@ -6,6 +6,7 @@ import { applySizes } from '../lib/widths.js';
 import { icon } from '../ih-icons.js';
 import { renderShell } from '../shell.js';
 import { alert, button, emptyState, skeleton } from '../ui/components.js';
+import { mountRevenueMilestones } from './revenue-ui.js';
 
 /** Conquistas da aluna (kit A-Conquistas): reconhecimento pelos marcos reais; o servidor decide o que está desbloqueado. */
 
@@ -55,11 +56,13 @@ export function renderAchievements({ root, session, api, navigate }) {
     eyebrow: 'Crescimento',
     subtitle: 'Reconhecimentos pelos marcos reais do seu negócio.',
     actions: html`<div class="ach-counter" id="ach-counter" hidden></div>`,
-    content: html`<div class="growth" id="ach-body" aria-busy="true">${skeleton(4)}</div>`,
+    // Marcos de faturamento (Entrega 6): bloco próprio, fora do corpo das conquistas (que é redesenhado pelos filtros).
+    content: html`<div class="growth"><div class="growth" id="ach-body" aria-busy="true">${skeleton(4)}</div><div id="ach-revenue"></div></div>`,
   });
 
   const body = root.querySelector('#ach-body');
   const counter = root.querySelector('#ach-counter');
+  const disposeRevenue = mountRevenueMilestones({ host: root.querySelector('#ach-revenue'), api });
 
   function paintCounter() {
     if (!data || data.total === 0) {
@@ -137,6 +140,7 @@ export function renderAchievements({ root, session, api, navigate }) {
 
   return () => {
     disposed = true;
+    disposeRevenue();
     dispose();
   };
 }
