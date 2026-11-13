@@ -169,3 +169,13 @@
 @media (max-width: 768px) {
   .jr-checkin-who { display: inline-flex; align-items: center; min-height: 44px; }
 }
+
+/* Minhas alunas: a fase fica em duas linhas (número e nome) e a coluna da aluna nunca é espremida a ponto de quebrar o
+   nome letra a letra. O separador " · " continua no texto (leitores de tela), só some da vista. */
+.jr-phase-cell { display: inline-flex; flex-direction: column; gap: 1px; line-height: 1.25; }
+.jr-phase-cell-label { font-size: var(--fs-caption); white-space: nowrap; }
+.jr-phase-sep { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (min-width: 769px) {
+  .data-table td.cell-primary .mp-student-text { min-width: 160px; }
+  .mp-student-name { overflow-wrap: normal; word-break: normal; }
+}

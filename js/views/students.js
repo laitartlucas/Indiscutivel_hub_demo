@@ -112,7 +112,7 @@ const COLUMNS = [
   },
   { key: 'goals', label: 'Meta', nowrap: true, optional: true, render: (s) => html`<span${attrs({ title: goalsSentence(s.goals) })}>${goalsText(s.goals)}<span class="sr-only"> (${goalsSentence(s.goals)})</span></span>` },
   // Fase da jornada (manual, registrada no perfil). Sem registro, o servidor devolve 1 (início da mentoria).
-  { key: 'phase', label: 'Fase', nowrap: true, render: (s) => (isPhase(s.phase) ? html`<span class="jr-phase-cell" title="${phaseLabel(s.phase)}">${phaseNumber(s.phase)}<span class="jr-phase-cell-label"> · ${phaseLabel(s.phase)}</span></span>` : html`<span class="mp-muted">—</span>`) },
+  { key: 'phase', label: 'Fase', render: (s) => (isPhase(s.phase) ? html`<span class="jr-phase-cell" title="${phaseLabel(s.phase)}">${phaseNumber(s.phase)}<span class="jr-phase-cell-label"><span class="jr-phase-sep"> · </span>${phaseLabel(s.phase)}</span></span>` : html`<span class="mp-muted">—</span>`) },
   { key: 'level', label: 'Nível', nowrap: true, render: (s) => html`<span${attrs({ class: `mp-level${s.level.n >= 9 ? ' is-high' : ''}` })}>${levelText(s.level.n)}<span class="sr-only">, ${s.level.name}</span></span>` },
   {
     key: 'activeStudents',
