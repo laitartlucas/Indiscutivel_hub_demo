@@ -290,6 +290,9 @@ body.modal-open { overflow: hidden; }
 
 /* ---------- tabela de dados (kit .ih-table) ---------- */
 .table-wrap {
+  /* Referência dos textos só para leitor de tela (position:absolute) das células: sem isso eles "escapam" da rolagem da
+     tabela e alargam a página quando a tabela é mais larga que a caixa. */
+  position: relative;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   background: var(--white);
@@ -301,6 +304,11 @@ body.modal-open { overflow: hidden; }
 .data-table td { padding: 12px 22px; text-align: left; vertical-align: middle; }
 .data-table th { padding-block: 13px; background: var(--paper-2); color: var(--ink-muted); font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; }
 .data-table td { border-top: 1px solid var(--line-soft); overflow-wrap: break-word; }
+/* Coluna principal (nome, venda, contato): nunca espremida a ponto de quebrar palavras letra a letra; se faltar espaço,
+   a tabela rola dentro da própria caixa (.table-wrap). Só no desktop: no celular as linhas viram cartões. */
+@media (min-width: 769px) {
+  .data-table td.cell-primary { min-width: 200px; }
+}
 .data-table tbody tr { transition: background var(--t-fast) ease; }
 .data-table tbody tr:hover { background: var(--paper-2); }
 .person-cell { display: flex; align-items: center; gap: 12px; min-width: 0; }
